@@ -47,7 +47,7 @@ public final class DirectoryInitialization {
 
         if (directoryState != DirectoryInitializationState.CITRA_DIRECTORIES_INITIALIZED) {
             if (PermissionsHandler.hasWriteAccess(context)) {
-                if (setCitraUserDirectory()) {
+                if (setCitraUserDirectory(context)) {
                     initializeInternalStorage(context);
                     NativeLibrary.CreateConfigFile();
                     directoryState = DirectoryInitializationState.CITRA_DIRECTORIES_INITIALIZED;
@@ -87,19 +87,11 @@ public final class DirectoryInitialization {
 
     private static native void SetSysDirectory(String path);
 
-    private static boolean setCitraUserDirectory() {
-        if (Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState())) {
-            File externalPath = Environment.getExternalStorageDirectory();
-            if (externalPath != null) {
-                userPath = externalPath.getAbsolutePath() + "/citra-emu";
-                Log.debug("[DirectoryInitialization] User Dir: " + userPath);
-                // NativeLibrary.SetUserDirectory(userPath);
-                return true;
-            }
-
-        }
-
-        return false;
+    private static boolean setCitraUserDirectory(Context context) {
+        userPath = new File(context.getFilesDir() , "citra-emu").getAbsolutePath()+"/";
+        NativeLibrary.SetUserDirectory(userPath);
+        Log.debug("[DirectoryInitialization] User Dir: " + userPath);
+        return true;
     }
 
     private static void initializeInternalStorage(Context context) {
