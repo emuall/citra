@@ -46,8 +46,16 @@ public:
     /// Whether the window is still open, and a close request hasn't yet been sent
     bool IsOpen() const;
 
+    /// Close the window.
+    void RequestClose();
+
     /// Creates a new context that is shared with the current context
     std::unique_ptr<GraphicsContext> CreateSharedContext() const override;
+
+    /// Saves the current context, for the purpose of e.g. creating new shared contexts
+    void SaveContext() override;
+    /// Restores the context previously saved
+    void RestoreContext() override;
 
 private:
     /// Called by PollEvents when a key is pressed or released.
@@ -93,6 +101,9 @@ private:
 
     /// The OpenGL context associated with the window
     SDL_GLContext window_context;
+
+    /// Used by SaveContext and RestoreContext
+    SDL_GLContext last_saved_context;
 
     /// The OpenGL context associated with the core
     std::unique_ptr<Frontend::GraphicsContext> core_context;
