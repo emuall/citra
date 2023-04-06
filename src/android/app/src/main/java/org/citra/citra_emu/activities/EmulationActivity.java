@@ -63,7 +63,7 @@ import static java.lang.annotation.RetentionPolicy.SOURCE;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.slider.Slider;
 
-public final class EmulationActivity extends AppCompatActivity {
+public class EmulationActivity extends AppCompatActivity {
     public static final String EXTRA_SELECTED_GAME = "SelectedGame";
     public static final String EXTRA_SELECTED_TITLE = "SelectedTitle";
     public static final int MENU_ACTION_EDIT_CONTROLS_PLACEMENT = 0;
