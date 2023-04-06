@@ -37,7 +37,7 @@ public class CopyDirProgressDialog extends DialogFragment {
 
         dialog = new MaterialAlertDialogBuilder(activity)
                      .setView(view)
-                     .setIcon(R.mipmap.ic_launcher)
+//                     .setIcon(R.mipmap.ic_launcher)
                      .setTitle(R.string.move_data)
                      .setMessage("")
                      .create();

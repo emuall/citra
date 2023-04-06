@@ -31,7 +31,7 @@ public class ForegroundService extends Service {
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, getString(R.string.app_notification_channel_id))
                 .setSmallIcon(R.drawable.ic_stat_notification_logo)
-                .setContentTitle(getString(R.string.app_name))
+                .setContentTitle("3DS")
                 .setContentText(getString(R.string.app_notification_running))
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setOngoing(true)
