@@ -34,19 +34,26 @@ public class PermissionsHandler {
     }
 
     public static boolean hasWriteAccess(Context context) {
-        try {
-            Uri uri = getCitraDirectory();
-            if (uri == null)
-                return false;
-            int takeFlags = (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-            context.getContentResolver().takePersistableUriPermission(uri, takeFlags);
-            DocumentFile root = DocumentFile.fromTreeUri(context, uri);
-            if (root != null && root.exists()) return true;
-            context.getContentResolver().releasePersistableUriPermission(uri, takeFlags);
-        } catch (Exception e) {
-            Log.error("[PermissionsHandler]: Cannot check citra data directory permission, error: " + e.getMessage());
-        }
-        return false;
+        return true;
+//        try {
+//            Uri uri = getCitraDirectory();
+//            if (uri == null)
+//                return false;
+//            int takeFlags = (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+//            context.getContentResolver().takePersistableUriPermission(uri, takeFlags);
+//            DocumentFile root = DocumentFile.fromTreeUri(context, uri);
+//            if (root != null && root.exists()) return true;
+//            context.getContentResolver().releasePersistableUriPermission(uri, takeFlags);
+//        } catch (Exception e) {
+//            Log.error("[PermissionsHandler]: Cannot check citra data directory permission, error: " + e.getMessage());
+//        }
+//        return false;
+    }
+
+    public static String getCitraDirectory(Context context) {
+        String path =  context.getExternalFilesDir(null) + "/citra-emu/";
+        setCitraDirectory(path);
+        return path;
     }
 
     @Nullable
