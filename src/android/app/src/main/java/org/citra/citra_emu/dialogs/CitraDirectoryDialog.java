@@ -79,8 +79,8 @@ public class CitraDirectoryDialog extends DialogFragment {
 
         dialog = new MaterialAlertDialogBuilder(activity)
                      .setView(view)
-                     .setIcon(R.mipmap.ic_launcher)
-                     .setTitle(R.string.app_name)
+//                     .setIcon(R.mipmap.ic_launcher)
+                     .setTitle("3DS")
                      .setPositiveButton(
                          android.R.string.ok,
                          (d, v) -> listener.onPressPositiveButton(checkBox.isChecked(), path))
