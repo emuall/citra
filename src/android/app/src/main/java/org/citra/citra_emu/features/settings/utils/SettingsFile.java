@@ -22,6 +22,7 @@ import org.citra.citra_emu.utils.Log;
 import org.ini4j.Wini;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -277,13 +278,13 @@ public final class SettingsFile {
     }
 
     public static DocumentFile getSettingsFile(String fileName) {
-        DocumentFile root = DocumentFile.fromTreeUri(CitraApplication.getAppContext(), Uri.parse(DirectoryInitialization.getUserDirectory()));
+        DocumentFile root = DocumentFile.fromFile(new File(DirectoryInitialization.getUserDirectory()));
         DocumentFile configDirectory = root.findFile("config");
         return configDirectory.findFile(fileName + ".ini");
     }
 
     private static DocumentFile getCustomGameSettingsFile(String gameId) {
-        DocumentFile root = DocumentFile.fromTreeUri(CitraApplication.getAppContext(), Uri.parse(DirectoryInitialization.getUserDirectory()));
+        DocumentFile root = DocumentFile.fromFile(new File(DirectoryInitialization.getUserDirectory()));
         DocumentFile configDirectory = root.findFile("GameSettings");
         return configDirectory.findFile(gameId + ".ini");
     }
