@@ -39,8 +39,8 @@ public final class StartupHandler {
             // Prompt user with standard first boot disclaimer
             AlertDialog dialog =
                 new MaterialAlertDialogBuilder(parent)
-                    .setTitle(R.string.app_name)
-                    .setIcon(R.mipmap.ic_launcher)
+                    .setTitle("3DS")
+//                    .setIcon(R.mipmap.ic_launcher)
                     .setMessage(R.string.app_disclaimer)
                     .setPositiveButton(android.R.string.ok, null)
                     .setCancelable(false)

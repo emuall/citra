@@ -40,6 +40,7 @@ import org.citra.citra_emu.features.settings.ui.SettingsActivity;
 import org.citra.citra_emu.model.GameProvider;
 import org.citra.citra_emu.ui.platform.PlatformGamesFragment;
 import org.citra.citra_emu.utils.AddDirectoryHelper;
+//import org.citra.citra_emu.utils.BillingManager;
 import org.citra.citra_emu.utils.BillingManager;
 import org.citra.citra_emu.utils.CiaInstallWorker;
 import org.citra.citra_emu.utils.CitraDirectoryHelper;
@@ -65,7 +66,7 @@ public final class MainActivity extends AppCompatActivity implements MainView {
     // private final CiaInstallWorker mCiaInstallWorker = new CiaInstallWorker();
 
     // Singleton to manage user billing state
-    private static BillingManager mBillingManager;
+//    private static BillingManager mBillingManager;
 
     private static MenuItem mPremiumButton;
 
@@ -166,7 +167,7 @@ public final class MainActivity extends AppCompatActivity implements MainView {
         PicassoUtils.init();
 
         // Setup billing manager, so we can globally query for Premium status
-        mBillingManager = new BillingManager(this);
+//        mBillingManager = new BillingManager(this);
 
         // Dismiss previous notifications (should not happen unless a crash occurred)
         EmulationActivity.tryDismissRunningNotification(this);
@@ -213,10 +214,10 @@ public final class MainActivity extends AppCompatActivity implements MainView {
         inflater.inflate(R.menu.menu_game_grid, menu);
         mPremiumButton = menu.findItem(R.id.button_premium);
 
-        if (mBillingManager.isPremiumCached()) {
+//        if (mBillingManager.isPremiumCached()) {
             // User had premium in a previous session, hide upsell option
             setPremiumButtonVisible(false);
-        }
+//        }
 
         return true;
     }
@@ -289,8 +290,8 @@ public final class MainActivity extends AppCompatActivity implements MainView {
 
     private void showGameInstallDialog() {
         new MaterialAlertDialogBuilder(this)
-            .setIcon(R.mipmap.ic_launcher)
-            .setTitle(R.string.app_name)
+//            .setIcon(R.mipmap.ic_launcher)
+            .setTitle("3DS")
             .setMessage(R.string.app_game_install_description)
             .setCancelable(false)
             .setNegativeButton(android.R.string.cancel, null)
@@ -309,7 +310,8 @@ public final class MainActivity extends AppCompatActivity implements MainView {
      * @return true if Premium subscription is currently active
      */
     public static boolean isPremiumActive() {
-        return mBillingManager.isPremiumActive();
+        return true;
+//        return mBillingManager.isPremiumActive();
     }
 
     /**
@@ -318,7 +320,7 @@ public final class MainActivity extends AppCompatActivity implements MainView {
      * @param callback Optional callback, called once, on completion of billing
      */
     public static void invokePremiumBilling(Runnable callback) {
-        mBillingManager.invokePremiumBilling(callback);
+//        mBillingManager.invokePremiumBilling(callback);
     }
 
     private void setInsets() {
