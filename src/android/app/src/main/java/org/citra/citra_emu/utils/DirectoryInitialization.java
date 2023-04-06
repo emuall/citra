@@ -121,18 +121,18 @@ public final class DirectoryInitialization {
     }
 
     private static void initializeInternalStorage(Context context) {
-        File sysDirectory = new File(context.getFilesDir(), "Sys");
+        File sysDirectory = new File(context.getFilesDir(), "CitraSys");
 
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences preferences = context.getSharedPreferences(EXTRA_STATE,Context.MODE_MULTI_PROCESS);
         String revision = NativeLibrary.GetGitRevision();
-        if (!preferences.getString("sysDirectoryVersion", "").equals(revision)) {
+        if (!preferences.getString("sysDirectoryCitraVersion", "").equals(revision)) {
             // There is no extracted Sys directory, or there is a Sys directory from another
             // version of Citra that might contain outdated files. Let's (re-)extract Sys.
             deleteDirectoryRecursively(sysDirectory);
-            copyAssetFolder("Sys", sysDirectory, true, context);
+            copyAssetFolder("CitraSys", sysDirectory, true, context);
 
             SharedPreferences.Editor editor = preferences.edit();
-            editor.putString("sysDirectoryVersion", revision);
+            editor.putString("sysDirectoryCitraVersion", revision);
             editor.apply();
         }
 
