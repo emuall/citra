@@ -45,8 +45,8 @@ public final class DirectoryInitialization {
             return;
 
         if (directoryState != DirectoryInitializationState.CITRA_DIRECTORIES_INITIALIZED) {
-            if (PermissionsHandler.hasWriteAccess(context)) {
-                if (setCitraUserDirectory()) {
+//            if (PermissionsHandler.hasWriteAccess(context)) {
+                if (setCitraUserDirectory(context)) {
                     initializeInternalStorage(context);
                     CitraApplication.documentsTree.setRoot(Uri.parse(userPath));
                     NativeLibrary.CreateLogFile();
@@ -56,9 +56,9 @@ public final class DirectoryInitialization {
                 } else {
                     directoryState = DirectoryInitializationState.CANT_FIND_EXTERNAL_STORAGE;
                 }
-            } else {
-                directoryState = DirectoryInitializationState.EXTERNAL_STORAGE_PERMISSION_NEEDED;
-            }
+//            } else {
+//                directoryState = DirectoryInitializationState.EXTERNAL_STORAGE_PERMISSION_NEEDED;
+//            }
         }
 
         isCitraDirectoryInitializationRunning.set(false);
@@ -94,6 +94,21 @@ public final class DirectoryInitialization {
 
     private static native void SetSysDirectory(String path);
 
+    private static boolean setCitraUserDirectory(Context context) {
+        SharedPreferences sp = context.getSharedPreferences("citra-emu", Context.MODE_MULTI_PROCESS);
+        String isCopy = sp.getString("citra","no");
+        if (!isCopy.equals("yes")) {
+            userPath = context.getFilesDir() + "/citra-emu/";
+            String newUserPath = PermissionsHandler.getCitraDirectory(context);
+            sp.edit().putString("citra","yes").apply();
+            userPath = newUserPath;
+        } else {
+            userPath = PermissionsHandler.getCitraDirectory(context);
+        }
+        Log.debug("[DirectoryInitialization] User Dir: " + userPath);
+        NativeLibrary.SetUserDirectory(userPath);
+        return true;
+    }
     private static boolean setCitraUserDirectory() {
         Uri dataPath = PermissionsHandler.getCitraDirectory();
         if (dataPath != null) {
