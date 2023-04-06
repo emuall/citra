@@ -154,7 +154,7 @@ public final class MainActivity extends AppCompatActivity implements MainView {
         mPresenter.onCreate();
 
         if (savedInstanceState == null) {
-            StartupHandler.HandleInit(this, mOpenCitraDirectory);
+//            StartupHandler.HandleInit(this, mOpenCitraDirectory);
             if (PermissionsHandler.hasWriteAccess(this)) {
                 mPlatformGamesFragment = new PlatformGamesFragment();
                 getSupportFragmentManager().beginTransaction().add(mFrameLayoutId, mPlatformGamesFragment)
