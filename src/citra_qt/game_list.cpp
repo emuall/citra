@@ -32,6 +32,7 @@
 #include "common/settings.h"
 #include "core/file_sys/archive_extsavedata.h"
 #include "core/file_sys/archive_source_sd_savedata.h"
+#include "core/hle/service/am/am.h"
 #include "core/hle/service/fs/archive.h"
 #include "qcursor.h"
 
@@ -623,8 +624,10 @@ void GameList::AddCustomDirPopup(QMenu& context_menu, QModelIndex selected) {
 void GameList::AddPermDirPopup(QMenu& context_menu, QModelIndex selected) {
     const int game_dir_index = selected.data(GameListDir::GameDirRole).toInt();
 
-    QAction* move_up = context_menu.addAction(tr("\u25b2 Move Up"));
-    QAction* move_down = context_menu.addAction(tr("\u25bc Move Down "));
+    QAction* move_up =
+        context_menu.addAction(tr("Move Up").prepend(QString::fromWCharArray(L"\u25b2 ")));
+    QAction* move_down =
+        context_menu.addAction(tr("Move Down").prepend(QString::fromWCharArray(L"\u25bc ")));
     QAction* open_directory_location = context_menu.addAction(tr("Open Directory Location"));
 
     const int row = selected.row();

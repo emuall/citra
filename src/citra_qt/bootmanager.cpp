@@ -5,12 +5,11 @@
 #include <glad/glad.h>
 
 #include <QApplication>
-#include <QDragEnterEvent>
 #include <QHBoxLayout>
 #include <QKeyEvent>
 #include <QMessageBox>
 #include <QPainter>
-#include <fmt/format.h>
+#include <QWindow>
 #include "citra_qt/bootmanager.h"
 #include "citra_qt/main.h"
 #include "common/color.h"
@@ -40,6 +39,8 @@
 #if !defined(WIN32)
 #include <qpa/qplatformnativeinterface.h>
 #endif
+
+static Frontend::WindowSystemType GetWindowSystemType();
 
 EmuThread::EmuThread(Frontend::GraphicsContext& core_context) : core_context(core_context) {}
 
@@ -163,7 +164,7 @@ public:
 
         // disable vsync for any shared contexts
         auto format = share_context->format();
-        format.setSwapInterval(main_surface ? Settings::values.use_vsync_new.GetValue() : 0);
+        format.setSwapInterval(0);
 
         context = std::make_unique<QOpenGLContext>();
         context->setShareContext(share_context);
@@ -243,6 +244,9 @@ public:
         : RenderWidget(parent), is_secondary(is_secondary) {
         setAttribute(Qt::WA_NativeWindow);
         setAttribute(Qt::WA_PaintOnScreen);
+        if (GetWindowSystemType() == Frontend::WindowSystemType::Wayland) {
+            setAttribute(Qt::WA_DontCreateNativeAncestors);
+        }
         windowHandle()->setSurfaceType(QWindow::OpenGLSurface);
     }
 
@@ -292,7 +296,7 @@ struct SoftwareRenderWidget : public RenderWidget {
 
         const auto draw_screen = [&](int fb_id) {
             const auto rect = fb_id == 0 ? layout.top_screen : layout.bottom_screen;
-            const QImage screen = LoadFramebuffer(fb_id);
+            const QImage screen = LoadFramebuffer(fb_id).scaled(rect.GetWidth(), rect.GetHeight());
             painter.drawImage(rect.left, rect.top, screen);
         };
 
@@ -334,6 +338,7 @@ struct SoftwareRenderWidget : public RenderWidget {
                     case GPU::Regs::PixelFormat::RGBA4:
                         return Common::Color::DecodeRGBA4(pixel);
                     }
+                    UNREACHABLE();
                 }();
 
                 image.setPixel(x, y, qRgba(color.r(), color.g(), color.b(), color.a()));
@@ -387,7 +392,7 @@ static Frontend::EmuWindow::WindowSystemInfo GetWindowSystemInfo(QWindow* window
     return wsi;
 }
 
-std::shared_ptr<Frontend::GraphicsContext> GRenderWindow::main_context;
+std::unique_ptr<Frontend::GraphicsContext> GRenderWindow::main_context;
 
 GRenderWindow::GRenderWindow(QWidget* parent_, EmuThread* emu_thread, bool is_secondary_)
     : QWidget(parent_), EmuWindow(is_secondary_), emu_thread(emu_thread) {
@@ -402,6 +407,7 @@ GRenderWindow::GRenderWindow(QWidget* parent_, EmuThread* emu_thread, bool is_se
     setLayout(layout);
 
     this->setMouseTracking(true);
+    strict_context_required = QGuiApplication::platformName() == QStringLiteral("wayland");
 
     GMainWindow* parent = GetMainWindow();
     connect(this, &GRenderWindow::FirstFrameDisplayed, parent, &GMainWindow::OnLoadComplete);
@@ -661,6 +667,12 @@ void GRenderWindow::OnMinimalClientAreaChangeRequest(std::pair<u32, u32> minimal
 
 bool GRenderWindow::InitializeOpenGL() {
 #ifdef HAS_OPENGL
+    if (!QOpenGLContext::supportsThreadedOpenGL()) {
+        QMessageBox::warning(this, tr("OpenGL not available!"),
+                             tr("OpenGL shared contexts are not supported."));
+        return false;
+    }
+
     // TODO: One of these flags might be interesting: WA_OpaquePaintEvent, WA_NoBackground,
     // WA_DontShowOnScreen, WA_DeleteOnClose
     auto child = new OpenGLRenderWidget(this, is_secondary);
@@ -668,11 +680,15 @@ bool GRenderWindow::InitializeOpenGL() {
     child_widget->windowHandle()->create();
 
     if (!main_context) {
-        main_context = std::make_shared<OpenGLSharedContext>();
+        main_context = std::make_unique<OpenGLSharedContext>();
     }
 
     auto child_context = CreateSharedContext();
     child->SetContext(std::move(child_context));
+
+    auto format = child_widget->windowHandle()->format();
+    format.setSwapInterval(Settings::values.use_vsync_new.GetValue());
+    child_widget->windowHandle()->setFormat(format);
 
     return true;
 #else

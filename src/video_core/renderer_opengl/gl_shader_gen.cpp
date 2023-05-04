@@ -59,7 +59,7 @@ out gl_PerVertex {
     return out;
 }
 
-PicaFSConfig PicaFSConfig::BuildFromRegs(const Pica::Regs& regs) {
+PicaFSConfig PicaFSConfig::BuildFromRegs(const Pica::Regs& regs, bool use_normal) {
     PicaFSConfig res{};
 
     auto& state = res.state;
@@ -204,6 +204,8 @@ PicaFSConfig PicaFSConfig::BuildFromRegs(const Pica::Regs& regs) {
 
     state.shadow_texture_orthographic = regs.texturing.shadow.orthographic != 0;
 
+    state.use_custom_normal_map = use_normal;
+
     return res;
 }
 
@@ -262,7 +264,8 @@ static std::string SampleTexture(const PicaFSConfig& config, unsigned texture_un
         // Only unit 0 respects the texturing type
         switch (state.texture0_type) {
         case TexturingRegs::TextureConfig::Texture2D:
-            return "textureLod(tex0, texcoord0, getLod(texcoord0 * vec2(textureSize(tex0, 0))))";
+            return "textureLod(tex0, texcoord0, getLod(texcoord0 * vec2(textureSize(tex0, 0))) + "
+                   "tex_lod_bias[0])";
         case TexturingRegs::TextureConfig::Projection2D:
             // TODO (wwylele): find the exact LOD formula for projection texture
             return "textureProj(tex0, vec3(texcoord0, texcoord0_w))";
@@ -280,12 +283,15 @@ static std::string SampleTexture(const PicaFSConfig& config, unsigned texture_un
             return "texture(tex0, texcoord0)";
         }
     case 1:
-        return "textureLod(tex1, texcoord1, getLod(texcoord1 * vec2(textureSize(tex1, 0))))";
+        return "textureLod(tex1, texcoord1, getLod(texcoord1 * vec2(textureSize(tex1, 0))) + "
+               "tex_lod_bias[1])";
     case 2:
         if (state.texture2_use_coord1)
-            return "textureLod(tex2, texcoord1, getLod(texcoord1 * vec2(textureSize(tex2, 0))))";
+            return "textureLod(tex2, texcoord1, getLod(texcoord1 * vec2(textureSize(tex2, 0))) + "
+                   "tex_lod_bias[2])";
         else
-            return "textureLod(tex2, texcoord2, getLod(texcoord2 * vec2(textureSize(tex2, 0))))";
+            return "textureLod(tex2, texcoord2, getLod(texcoord2 * vec2(textureSize(tex2, 0))) + "
+                   "tex_lod_bias[2])";
     case 3:
         if (state.proctex.enable) {
             return "ProcTex()";
@@ -293,6 +299,8 @@ static std::string SampleTexture(const PicaFSConfig& config, unsigned texture_un
             LOG_DEBUG(Render_OpenGL, "Using Texture3 without enabling it");
             return "vec4(0.0)";
         }
+    case 4:
+        return "texture(tex_normal, texcoord0)";
     default:
         UNREACHABLE();
         return "";
@@ -638,7 +646,12 @@ static void WriteLighting(std::string& out, const PicaFSConfig& config) {
     const auto Perturbation = [&] {
         return fmt::format("2.0 * ({}).rgb - 1.0", SampleTexture(config, lighting.bump_selector));
     };
-    if (lighting.bump_mode == LightingRegs::LightingBumpMode::NormalMap) {
+    if (config.state.use_custom_normal_map) {
+        const std::string normal_texel =
+            fmt::format("2.0 * ({}).rgb - 1.0", SampleTexture(config, 4));
+        out += fmt::format("vec3 surface_normal = {};\n", normal_texel);
+        out += "vec3 surface_tangent = vec3(1.0, 0.0, 0.0);\n";
+    } else if (lighting.bump_mode == LightingRegs::LightingBumpMode::NormalMap) {
         // Bump mapping is enabled using a normal map
         out += fmt::format("vec3 surface_normal = {};\n", Perturbation());
 
@@ -1203,6 +1216,7 @@ out vec4 color;
 uniform sampler2D tex0;
 uniform sampler2D tex1;
 uniform sampler2D tex2;
+uniform sampler2D tex_normal; //< Used for custom normal maps
 uniform samplerCube tex_cube;
 uniform samplerBuffer texture_buffer_lut_lf;
 uniform samplerBuffer texture_buffer_lut_rg;

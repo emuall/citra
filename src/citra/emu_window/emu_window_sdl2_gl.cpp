@@ -10,6 +10,7 @@
 #include <glad/glad.h>
 #include "citra/emu_window/emu_window_sdl2_gl.h"
 #include "common/scm_rev.h"
+#include "common/settings.h"
 #include "video_core/renderer_base.h"
 #include "video_core/video_core.h"
 
@@ -81,6 +82,8 @@ EmuWindow_SDL2_GL::EmuWindow_SDL2_GL(bool fullscreen, bool is_secondary)
         LOG_CRITICAL(Frontend, "Failed to create SDL2 window: {}", SDL_GetError());
         exit(1);
     }
+
+    strict_context_required = std::strcmp(SDL_GetCurrentVideoDriver(), "wayland") == 0;
 
     dummy_window = SDL_CreateWindow(NULL, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 0, 0,
                                     SDL_WINDOW_HIDDEN | SDL_WINDOW_OPENGL);

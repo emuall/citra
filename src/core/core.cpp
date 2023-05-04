@@ -2,7 +2,6 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
-#include <fstream>
 #include <memory>
 #include <stdexcept>
 #include <utility>
@@ -27,7 +26,7 @@
 #include "core/dumping/ffmpeg_backend.h"
 #endif
 #include "common/settings.h"
-#include "core/custom_tex_cache.h"
+#include "core/frontend/image_interface.h"
 #include "core/gdbstub/gdbstub.h"
 #include "core/global.h"
 #include "core/hle/kernel/client_port.h"
@@ -48,6 +47,7 @@
 #include "core/movie.h"
 #include "core/rpc/rpc_server.h"
 #include "network/network.h"
+#include "video_core/custom_textures/custom_tex_manager.h"
 #include "video_core/renderer_base.h"
 #include "video_core/video_core.h"
 
@@ -113,9 +113,10 @@ System::ResultStatus System::RunLoop(bool tight_loop) {
     case Signal::Shutdown:
         return ResultStatus::ShutdownRequested;
     case Signal::Load: {
-        LOG_INFO(Core, "Begin load");
+        const u32 slot = param;
+        LOG_INFO(Core, "Begin load of slot {}", slot);
         try {
-            System::LoadState(param);
+            System::LoadState(slot);
             LOG_INFO(Core, "Load completed");
         } catch (const std::exception& e) {
             LOG_ERROR(Core, "Error loading: {}", e.what());
@@ -126,9 +127,10 @@ System::ResultStatus System::RunLoop(bool tight_loop) {
         return ResultStatus::Success;
     }
     case Signal::Save: {
-        LOG_INFO(Core, "Begin save");
+        const u32 slot = param;
+        LOG_INFO(Core, "Begin save to slot {}", slot);
         try {
-            System::SaveState(param);
+            System::SaveState(slot);
             LOG_INFO(Core, "Save completed");
         } catch (const std::exception& e) {
             LOG_ERROR(Core, "Error saving: {}", e.what());
@@ -309,23 +311,22 @@ System::ResultStatus System::Load(Frontend::EmuWindow& emu_window, const std::st
         }
     }
     kernel->SetCurrentProcess(process);
-    cheat_engine = std::make_unique<Cheats::CheatEngine>(*this);
     title_id = 0;
     if (app_loader->ReadProgramId(title_id) != Loader::ResultStatus::Success) {
         LOG_ERROR(Core, "Failed to find title id for ROM (Error {})",
                   static_cast<u32>(load_result));
     }
+    cheat_engine = std::make_unique<Cheats::CheatEngine>(title_id, *this);
     perf_stats = std::make_unique<PerfStats>(title_id);
-    custom_tex_cache = std::make_unique<Core::CustomTexCache>();
 
     if (Settings::values.custom_textures) {
-        const u64 program_id = Kernel().GetCurrentProcess()->codeset->program_id;
-        FileUtil::CreateFullPath(fmt::format(
-            "{}textures/{:016X}/", FileUtil::GetUserPath(FileUtil::UserPath::LoadDir), program_id));
-        custom_tex_cache->FindCustomTextures(program_id);
+        custom_tex_manager->FindCustomTextures();
     }
     if (Settings::values.preload_textures) {
-        custom_tex_cache->PreloadTextures(*GetImageInterface());
+        custom_tex_manager->PreloadTextures();
+    }
+    if (Settings::values.dump_textures) {
+        custom_tex_manager->WriteConfig();
     }
 
     status = ResultStatus::Success;
@@ -375,6 +376,7 @@ System::ResultStatus System::Init(Frontend::EmuWindow& emu_window,
         *memory, *timing, [this] { PrepareReschedule(); }, system_mode, num_cores, n3ds_mode);
 
     exclusive_monitor = MakeExclusiveMonitor(*memory, num_cores);
+    cpu_cores.reserve(num_cores);
     if (Settings::values.use_cpu_jit) {
 #if CITRA_ARCH(x86_64) || CITRA_ARCH(arm64)
         for (u32 i = 0; i < num_cores; ++i) {
@@ -409,8 +411,8 @@ System::ResultStatus System::Init(Frontend::EmuWindow& emu_window,
 
     memory->SetDSP(*dsp_core);
 
-    dsp_core->SetSink(Settings::values.sink_id.GetValue(),
-                      Settings::values.audio_device_id.GetValue());
+    dsp_core->SetSink(Settings::values.output_type.GetValue(),
+                      Settings::values.output_device.GetValue());
     dsp_core->EnableStretching(Settings::values.enable_audio_stretching.GetValue());
 
     telemetry_session = std::make_unique<Core::TelemetrySession>();
@@ -429,6 +431,12 @@ System::ResultStatus System::Init(Frontend::EmuWindow& emu_window,
 #else
     video_dumper = std::make_unique<VideoDumper::NullBackend>();
 #endif
+
+    if (!registered_image_interface) {
+        registered_image_interface = std::make_shared<Frontend::ImageInterface>();
+    }
+
+    custom_tex_manager = std::make_unique<VideoCore::CustomTexManager>(*this);
 
     VideoCore::Init(emu_window, secondary_window, *this);
 
@@ -503,12 +511,12 @@ const VideoDumper::Backend& System::VideoDumper() const {
     return *video_dumper;
 }
 
-Core::CustomTexCache& System::CustomTexCache() {
-    return *custom_tex_cache;
+VideoCore::CustomTexManager& System::CustomTexManager() {
+    return *custom_tex_manager;
 }
 
-const Core::CustomTexCache& System::CustomTexCache() const {
-    return *custom_tex_cache;
+const VideoCore::CustomTexManager& System::CustomTexManager() const {
+    return *custom_tex_manager;
 }
 
 void System::RegisterMiiSelector(std::shared_ptr<Frontend::MiiSelector> mii_selector) {

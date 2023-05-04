@@ -3,8 +3,6 @@
 // Refer to the license.txt file included.
 
 #include <algorithm>
-#include <iostream>
-#include <regex>
 #include <thread>
 
 #include <android/api-level.h>
@@ -24,7 +22,6 @@
 #include "core/core.h"
 #include "core/frontend/applets/default_applets.h"
 #include "core/frontend/camera/factory.h"
-#include "core/frontend/mic.h"
 #include "core/hle/service/am/am.h"
 #include "core/hle/service/nfc/nfc.h"
 #include "core/savestate.h"
@@ -39,12 +36,9 @@
 #include "jni/game_settings.h"
 #include "jni/id_cache.h"
 #include "jni/input_manager.h"
-#include "jni/lodepng_image_interface.h"
-#include "jni/mic.h"
 #include "jni/native.h"
 #include "jni/ndk_motion.h"
 #include "video_core/renderer_base.h"
-#include "video_core/renderer_opengl/texture_filters/texture_filterer.h"
 #include "video_core/video_core.h"
 
 namespace {
@@ -136,6 +130,11 @@ static void TryShutdown() {
     MicroProfileShutdown();
 }
 
+static bool CheckMicPermission() {
+    return IDCache::GetEnvForThread()->CallStaticBooleanMethod(IDCache::GetNativeLibraryClass(),
+                                                               IDCache::GetRequestMicPermission());
+}
+
 static Core::System::ResultStatus RunCitra(const std::string& filepath) {
     // Citra core only supports a single running instance
     std::lock_guard<std::mutex> lock(running_mutex);
@@ -185,11 +184,8 @@ static Core::System::ResultStatus RunCitra(const std::string& filepath) {
     system.RegisterMiiSelector(std::make_shared<MiiSelector::AndroidMiiSelector>());
     system.RegisterSoftwareKeyboard(std::make_shared<SoftwareKeyboard::AndroidKeyboard>());
 
-    // Register generic image interface
-    Core::System::GetInstance().RegisterImageInterface(std::make_shared<LodePNGImageInterface>());
-
-    // Register real Mic factory
-    Frontend::Mic::RegisterRealMicFactory(std::make_unique<Mic::AndroidFactory>());
+    // Register microphone permission check
+    Core::System::GetInstance().RegisterMicPermissionCheck(&CheckMicPermission);
 
     InputManager::Init();
 
@@ -630,17 +626,6 @@ void Java_org_citra_citra_1emu_NativeLibrary_Run__Ljava_lang_String_2(JNIEnv* en
     }
 }
 
-jobjectArray Java_org_citra_citra_1emu_NativeLibrary_GetTextureFilterNames(JNIEnv* env,
-                                                                           jclass clazz) {
-    auto names = OpenGL::TextureFilterer::GetFilterNames();
-    jobjectArray ret = (jobjectArray)env->NewObjectArray(static_cast<jsize>(names.size()),
-                                                         env->FindClass("java/lang/String"),
-                                                         env->NewStringUTF(""));
-    for (jsize i = 0; i < names.size(); ++i)
-        env->SetObjectArrayElement(ret, i, env->NewStringUTF(names[i].data()));
-    return ret;
-}
-
 void Java_org_citra_citra_1emu_NativeLibrary_ReloadCameraDevices(JNIEnv* env, jclass clazz) {
     if (g_ndk_factory) {
         g_ndk_factory->ReloadCameraDevices();
@@ -679,6 +664,7 @@ void Java_org_citra_citra_1emu_NativeLibrary_InstallCIAS(JNIEnv* env, [[maybe_un
                                                          jobjectArray path) {
     const jsize count{env->GetArrayLength(path)};
     std::vector<std::string> paths;
+    paths.reserve(count);
     for (jsize idx{0}; idx < count; ++idx) {
         paths.emplace_back(
             GetJString(env, static_cast<jstring>(env->GetObjectArrayElement(path, idx))));

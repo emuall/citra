@@ -203,6 +203,10 @@ public:
         return active_config;
     }
 
+    bool StrictContextRequired() const {
+        return strict_context_required;
+    }
+
     /**
      * Requests the internal configuration to be replaced by the specified argument at some point in
      * the future.
@@ -268,6 +272,7 @@ protected:
     }
 
     bool is_secondary{};
+    bool strict_context_required{};
     WindowSystemInfo window_info;
 
 private:
@@ -276,7 +281,8 @@ private:
      * For the request to be honored, EmuWindow implementations will usually reimplement this
      * function.
      */
-    virtual void OnMinimalClientAreaChangeRequest(std::pair<u32, u32> minimal_size) {
+    virtual void OnMinimalClientAreaChangeRequest(
+        [[maybe_unused]] std::pair<u32, u32> minimal_size) {
         // By default, ignore this request and do nothing.
     }
 

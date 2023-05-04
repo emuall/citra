@@ -11,6 +11,7 @@
 #include "citra/emu_window/emu_window_sdl2_sw.h"
 #include "common/color.h"
 #include "common/scm_rev.h"
+#include "common/settings.h"
 #include "core/frontend/emu_window.h"
 #include "core/hw/gpu.h"
 #include "core/memory.h"
@@ -37,6 +38,11 @@ EmuWindow_SDL2_SW::EmuWindow_SDL2_SW(bool fullscreen, bool is_secondary)
     window_surface = SDL_GetWindowSurface(render_window);
     renderer = SDL_CreateSoftwareRenderer(window_surface);
 
+    if (renderer == nullptr) {
+        LOG_CRITICAL(Frontend, "Failed to create SDL2 software renderer: {}", SDL_GetError());
+        exit(1);
+    }
+
     if (fullscreen) {
         Fullscreen();
     }
@@ -62,9 +68,10 @@ void EmuWindow_SDL2_SW::Present() {
         Core::kScreenTopWidth, Core::kScreenTopHeight + Core::kScreenBottomHeight, false, false)};
 
     while (IsOpen()) {
-        SDL_SetRenderDrawColor(renderer, Settings::values.bg_red.GetValue() * 255,
-                               Settings::values.bg_green.GetValue() * 255,
-                               Settings::values.bg_blue.GetValue() * 255, 0xFF);
+        SDL_SetRenderDrawColor(renderer,
+                               static_cast<Uint8>(Settings::values.bg_red.GetValue() * 255),
+                               static_cast<Uint8>(Settings::values.bg_green.GetValue() * 255),
+                               static_cast<Uint8>(Settings::values.bg_blue.GetValue() * 255), 0xFF);
         SDL_RenderClear(renderer);
 
         const auto draw_screen = [&](int fb_id) {
@@ -116,6 +123,7 @@ SDL_Surface* EmuWindow_SDL2_SW::LoadFramebuffer(int fb_id) {
                 case GPU::Regs::PixelFormat::RGBA4:
                     return Common::Color::DecodeRGBA4(pixel);
                 }
+                UNREACHABLE();
             }();
 
             u8* dst_pixel = reinterpret_cast<u8*>(surface->pixels) + (y * width + x) * 4;

@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <memory>
 #include <utility>
+#include "common/common_types.h"
 #include "core/frontend/emu_window.h"
 
 struct SDL_Window;
@@ -71,7 +71,7 @@ protected:
     SDL_Window* render_window;
 
     /// Internal SDL2 window ID
-    int render_window_id{};
+    u32 render_window_id{};
 
     /// Fake hidden window for the core context
     SDL_Window* dummy_window;

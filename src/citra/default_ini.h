@@ -110,10 +110,6 @@ use_gles =
 # 0: Software, 1 (default): Hardware
 use_hw_shader =
 
-# Whether to use separable shaders to emulate 3DS shaders (macOS only)
-# 0: Off (Default), 1 : On
-separable_shader =
-
 # Whether to use accurate multiplication in hardware shaders
 # 0: Off (Faster, but causes issues in some games) 1: On (Default. Slower, but correct)
 shaders_accurate_mul =
@@ -136,8 +132,9 @@ use_disk_shader_cache =
 # factor for the 3DS resolution
 resolution_factor =
 
-# Texture filter name
-texture_filter_name =
+# Texture filter
+# 0: None, 1: Anime4K, 2: Bicubic, 3: Nearest Neighbor, 4: ScaleForce, 5: xBRZ
+texture_filter =
 
 # Limits the speed of the game to run no faster than this value as a percentage of target speed.
 # Will not have an effect if unthrottled is enabled.
@@ -235,6 +232,10 @@ custom_textures =
 # 0 (default): Off, 1: On
 preload_textures =
 
+# Loads custom textures asynchronously with background threads.
+# 0: Off, 1 (default): On
+async_custom_loading =
+
 [Audio]
 # Whether or not to enable DSP LLE
 # 0 (default): No, 1: Yes
@@ -244,24 +245,31 @@ enable_dsp_lle =
 # 0 (default): No, 1: Yes
 enable_dsp_lle_thread =
 
-
-# Which audio output engine to use.
-# auto (default): Auto-select, null: No audio output, sdl2: SDL2 (if available)
-output_engine =
-
 # Whether or not to enable the audio-stretching post-processing effect.
 # This effect adjusts audio speed to match emulation speed and helps prevent audio stutter,
 # at the cost of increasing audio latency.
 # 0: No, 1 (default): Yes
 enable_audio_stretching =
 
-# Which audio device to use.
-# auto (default): Auto-select
-output_device =
-
 # Output volume.
 # 1.0 (default): 100%, 0.0; mute
 volume =
+
+# Which audio output type to use.
+# 0 (default): Auto-select, 1: No audio output, 2: Cubeb (if available), 3: OpenAL (if available), 4: SDL2 (if available)
+output_type =
+
+# Which audio output device to use.
+# auto (default): Auto-select
+output_device =
+
+# Which audio input type to use.
+# 0 (default): Auto-select, 1: No audio input, 2: Static noise, 3: Cubeb (if available), 4: OpenAL (if available)
+input_type =
+
+# Which audio input device to use.
+# auto (default): Auto-select
+input_device =
 
 [Data Storage]
 # Whether to create a virtual SD card.

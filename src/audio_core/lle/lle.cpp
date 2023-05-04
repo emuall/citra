@@ -69,6 +69,7 @@ Dsp1::Dsp1(const std::vector<u8>& raw) {
     Header header;
     std::memcpy(&header, raw.data(), sizeof(header));
     recv_data_on_start = header.recv_data_on_start != 0;
+    segments.reserve(header.num_segments);
     for (u32 i = 0; i < header.num_segments; ++i) {
         Segment segment;
         segment.data =
@@ -450,7 +451,8 @@ void DspLle::SetServiceToInterrupt(std::weak_ptr<Service::DSP::DSP_DSP> dsp) {
                 return;
             if (pipe == 0) {
                 // pipe 0 is for debug. 3DS automatically drains this pipe and discards the data
-                impl->ReadPipe(static_cast<u8>(pipe), impl->GetPipeReadableSize(pipe));
+                impl->ReadPipe(static_cast<u8>(pipe),
+                               impl->GetPipeReadableSize(static_cast<u8>(pipe)));
             } else {
                 std::lock_guard lock(HLE::g_hle_lock);
                 if (auto locked = dsp.lock()) {

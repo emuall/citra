@@ -26,6 +26,7 @@ constexpr TextureUnit TextureCube{6};
 constexpr TextureUnit TextureBufferLUT_LF{3};
 constexpr TextureUnit TextureBufferLUT_RG{4};
 constexpr TextureUnit TextureBufferLUT_RGBA{5};
+constexpr TextureUnit TextureNormalMap{7};
 
 } // namespace TextureUnits
 
@@ -116,12 +117,17 @@ public:
 
     // GL_IMAGE_BINDING_NAME
     GLuint image_shadow_buffer;
-    GLuint image_shadow_texture_px;
-    GLuint image_shadow_texture_nx;
-    GLuint image_shadow_texture_py;
-    GLuint image_shadow_texture_ny;
-    GLuint image_shadow_texture_pz;
-    GLuint image_shadow_texture_nz;
+    union {
+        std::array<GLuint, 6> image_shadow_texture;
+        struct {
+            GLuint image_shadow_texture_px;
+            GLuint image_shadow_texture_nx;
+            GLuint image_shadow_texture_py;
+            GLuint image_shadow_texture_ny;
+            GLuint image_shadow_texture_pz;
+            GLuint image_shadow_texture_nz;
+        };
+    };
 
     struct {
         GLuint read_framebuffer; // GL_READ_FRAMEBUFFER_BINDING
