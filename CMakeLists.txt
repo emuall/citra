@@ -25,7 +25,7 @@ option(USE_SYSTEM_SDL2 "Use the system SDL2 lib (instead of the bundled one)" OF
 # Set bundled qt as dependent options.
 option(ENABLE_QT "Enable the Qt frontend" ON)
 option(ENABLE_QT_TRANSLATION "Enable translations for the Qt frontend" OFF)
-CMAKE_DEPENDENT_OPTION(CITRA_USE_BUNDLED_QT "Download bundled Qt binaries" ON "ENABLE_QT;MSVC" OFF)
+CMAKE_DEPENDENT_OPTION(CITRA_USE_BUNDLED_QT "Download bundled Qt binaries" ON "ENABLE_QT;MSVC OR APPLE" OFF)
 
 option(ENABLE_WEB_SERVICE "Enable web services (telemetry, etc.)" ON)
 if (MSVC)
@@ -51,6 +51,7 @@ option(USE_DISCORD_PRESENCE "Enables Discord Rich Presence" OFF)
 option(CITRA_USE_PRECOMPILED_HEADERS "Use precompiled headers" ON)
 
 CMAKE_DEPENDENT_OPTION(ENABLE_MF "Use Media Foundation decoder (preferred over FFmpeg)" ON "WIN32" OFF)
+CMAKE_DEPENDENT_OPTION(ENABLE_AUDIOTOOLBOX "Use AudioToolbox decoder (preferred over FFmpeg)" ON "APPLE" OFF)
 
 CMAKE_DEPENDENT_OPTION(COMPILE_WITH_DWARF "Add DWARF debugging information" ON "MINGW" OFF)
 
@@ -202,23 +203,23 @@ find_package(Threads REQUIRED)
 
 if (ENABLE_QT)
     if (CITRA_USE_BUNDLED_QT)
-        download_qt_external(5.15.2 QT_PREFIX)
+        download_qt_external(6.5.0 QT_PREFIX)
         list(APPEND CMAKE_PREFIX_PATH ${QT_PREFIX})
     endif()
 
-    find_package(Qt5 REQUIRED COMPONENTS Widgets Multimedia Concurrent)
+    find_package(Qt6 REQUIRED COMPONENTS Widgets Multimedia Concurrent)
 
     if (UNIX AND NOT APPLE)
-        find_package(Qt5 REQUIRED COMPONENTS DBus)
+        find_package(Qt6 REQUIRED COMPONENTS DBus)
     endif()
 
     if (ENABLE_QT_TRANSLATION)
-        find_package(Qt5 REQUIRED COMPONENTS LinguistTools)
+        find_package(Qt6 REQUIRED COMPONENTS LinguistTools)
     endif()
 
     if (NOT CITRA_USE_BUNDLED_QT)
-        # Make sure the Qt bin directory is in the prefix path for later consumers.
-        get_target_property(qmake_executable Qt5::qmake IMPORTED_LOCATION)
+        # Make sure the Qt bin directory is in the prefix path for later use, such as in post-build scripts.
+        get_target_property(qmake_executable Qt6::qmake IMPORTED_LOCATION)
         get_filename_component(qt_bin_dir "${qmake_executable}" DIRECTORY)
         list(APPEND CMAKE_PREFIX_PATH ${qt_bin_dir})
     endif()
@@ -273,6 +274,10 @@ if (ENABLE_FDK)
         message(FATAL_ERROR "fdk_aac library not found.")
     endif()
 endif()
+
+# Use system tsl::robin_map if available (otherwise we fallback to version bundled with dynarmic)
+find_package(tsl-robin-map QUIET)
+
 # Platform-specific library requirements
 # ======================================
 
@@ -282,8 +287,6 @@ if (APPLE)
     find_library(AVFOUNDATION_LIBRARY AVFoundation)
     set(PLATFORM_LIBRARIES ${COCOA_LIBRARY} ${AVFOUNDATION_LIBRARY} ${IOKIT_LIBRARY} ${COREVIDEO_LIBRARY})
 elseif (WIN32)
-    # WSAPoll and SHGetKnownFolderPath (AppData/Roaming) didn't exist before WinNT 6.x (Vista)
-    add_definitions(-D_WIN32_WINNT=0x0601 -DWINVER=0x0601)
     set(PLATFORM_LIBRARIES winmm ws2_32)
     if (MINGW)
         # PSAPI is the Process Status API
