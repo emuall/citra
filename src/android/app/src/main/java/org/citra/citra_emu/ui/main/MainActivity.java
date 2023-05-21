@@ -48,7 +48,6 @@ import org.citra.citra_emu.utils.FileBrowserHelper;
 import org.citra.citra_emu.utils.InsetsHelper;
 import org.citra.citra_emu.utils.PermissionsHandler;
 import org.citra.citra_emu.utils.PicassoUtils;
-import org.citra.citra_emu.utils.StartupHandler;
 import org.citra.citra_emu.utils.ThemeUtil;
 
 /**
@@ -142,7 +141,7 @@ public final class MainActivity extends AppCompatActivity implements MainView {
         ThemeUtil.applyTheme(this);
 
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        setContentView(R.layout.activity_main_citra);
 
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
 
@@ -210,7 +209,7 @@ public final class MainActivity extends AppCompatActivity implements MainView {
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater inflater = getMenuInflater();
-        inflater.inflate(R.menu.menu_game_grid, menu);
+        inflater.inflate(R.menu.menu_game_grid_citra, menu);
         mPremiumButton = menu.findItem(R.id.button_premium);
 
 //        if (mBillingManager.isPremiumCached()) {
