@@ -7,7 +7,6 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
-import android.util.Pair;
 import android.util.SparseIntArray;
 import android.view.InputDevice;
 import android.view.KeyEvent;
@@ -22,7 +21,6 @@ import android.widget.CheckBox;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.activity.result.ActivityResultCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.annotation.IntDef;
 import androidx.annotation.NonNull;
@@ -42,7 +40,6 @@ import org.citra.citra_emu.features.settings.ui.SettingsActivity;
 import org.citra.citra_emu.features.settings.utils.SettingsFile;
 import org.citra.citra_emu.camera.StillImageCameraHelper;
 import org.citra.citra_emu.fragments.EmulationFragment;
-import org.citra.citra_emu.ui.main.MainActivity;
 import org.citra.citra_emu.utils.ControllerMappingHelper;
 import org.citra.citra_emu.utils.EmulationMenuSettings;
 import org.citra.citra_emu.utils.FileBrowserHelper;
@@ -50,7 +47,6 @@ import org.citra.citra_emu.utils.FileUtil;
 import org.citra.citra_emu.utils.ForegroundService;
 import org.citra.citra_emu.utils.ThemeUtil;
 
-import java.io.File;
 import java.io.IOException;
 import java.lang.annotation.Retention;
 import java.util.Collections;
@@ -189,7 +185,7 @@ public class EmulationActivity extends AppCompatActivity {
         // Set these options now so that the SurfaceView the game renders into is the right size.
         enableFullscreenImmersive();
 
-        setContentView(R.layout.activity_emulation);
+        setContentView(R.layout.activity_emulation_citra);
 
         // Find or create the EmulationFragment
         mEmulationFragment = (EmulationFragment) getSupportFragmentManager()
@@ -299,7 +295,7 @@ public class EmulationActivity extends AppCompatActivity {
     }
 
     private void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
-        inflater.inflate(R.menu.menu_emulation, menu);
+        inflater.inflate(R.menu.menu_emulation_citra, menu);
 
         int layoutOptionMenuItem = R.id.menu_screen_layout_landscape;
         switch (EmulationMenuSettings.getLandscapeScreenLayout()) {
@@ -329,7 +325,7 @@ public class EmulationActivity extends AppCompatActivity {
         }
 
         LayoutInflater inflater = mEmulationFragment.requireActivity().getLayoutInflater();
-        View view = inflater.inflate(R.layout.dialog_checkbox, null);
+        View view = inflater.inflate(R.layout.dialog_checkbox_citra, null);
         CheckBox checkBox = view.findViewById(R.id.checkBox);
 
         new MaterialAlertDialogBuilder(this)
@@ -626,7 +622,7 @@ public class EmulationActivity extends AppCompatActivity {
 
     private void adjustScale() {
         LayoutInflater inflater = LayoutInflater.from(this);
-        View view = inflater.inflate(R.layout.dialog_slider, null);
+        View view = inflater.inflate(R.layout.dialog_slider_citra, null);
 
         final Slider slider = view.findViewById(R.id.slider);
         final TextView textValue = view.findViewById(R.id.text_value);

@@ -45,7 +45,7 @@
             android:layout_weight="1"
             android:id="@+id/cheat_list_container"
             android:name="org.citra.citra_emu.features.cheats.ui.CheatListFragment"
-            tools:layout="@layout/fragment_cheat_list" />
+            tools:layout="@layout/fragment_cheat_list_citra" />
 
         <androidx.fragment.app.FragmentContainerView
             android:layout_width="match_parent"
@@ -53,7 +53,7 @@
             android:layout_weight="1"
             android:id="@+id/cheat_details_container"
             android:name="org.citra.citra_emu.features.cheats.ui.CheatDetailsFragment"
-            tools:layout="@layout/fragment_cheat_details" />
+            tools:layout="@layout/fragment_cheat_details_citra" />
 
     </androidx.slidingpanelayout.widget.SlidingPaneLayout>
 

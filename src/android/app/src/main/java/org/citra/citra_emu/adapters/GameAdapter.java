@@ -62,7 +62,7 @@ public final class GameAdapter extends RecyclerView.Adapter<GameViewHolder> {
     public GameViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
         // Create a new view.
         View gameCard = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.card_game, parent, false);
+                .inflate(R.layout.card_game_citra, parent, false);
 
         gameCard.setOnClickListener(this::onClick);
         gameCard.setOnLongClickListener(this::onLongClick);

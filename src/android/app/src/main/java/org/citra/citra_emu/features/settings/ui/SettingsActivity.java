@@ -51,7 +51,7 @@ public final class SettingsActivity extends AppCompatActivity implements Setting
         ThemeUtil.applyTheme(this);
 
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_settings);
+        setContentView(R.layout.activity_settings_citra);
 
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
 
@@ -79,7 +79,7 @@ public final class SettingsActivity extends AppCompatActivity implements Setting
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater inflater = getMenuInflater();
-        inflater.inflate(R.menu.menu_settings, menu);
+        inflater.inflate(R.menu.menu_settings_citra, menu);
 
         return true;
     }
