@@ -43,7 +43,7 @@ public class CheatsAdapter extends RecyclerView.Adapter<CheatViewHolder> {
     public CheatViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         LayoutInflater inflater = LayoutInflater.from(parent.getContext());
 
-        View cheatView = inflater.inflate(R.layout.list_item_cheat, parent, false);
+        View cheatView = inflater.inflate(R.layout.list_item_cheat_citra, parent, false);
         addViewListeners(cheatView);
         return new CheatViewHolder(cheatView);
     }

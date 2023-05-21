@@ -57,7 +57,7 @@ public class CitraDirectoryDialog extends DialogFragment {
             getResources().getString(R.string.free_space, FileUtil.getFreeSpace(activity, path));
 
         LayoutInflater inflater = getLayoutInflater();
-        View view = inflater.inflate(R.layout.dialog_citra_directory, null);
+        View view = inflater.inflate(R.layout.dialog_citra_directory_citra, null);
 
         checkBox = view.findViewById(R.id.checkBox);
         pathView = view.findViewById(R.id.path);
