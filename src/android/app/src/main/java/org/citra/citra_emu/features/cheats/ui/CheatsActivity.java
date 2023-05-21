@@ -62,7 +62,7 @@ public class CheatsActivity extends AppCompatActivity
         mViewModel = new ViewModelProvider(this).get(CheatsViewModel.class);
         mViewModel.initialize(titleId);
 
-        setContentView(R.layout.activity_cheats);
+        setContentView(R.layout.activity_cheats_citra);
 
         mSlidingPaneLayout = findViewById(R.id.sliding_pane_layout);
         mCheatList = findViewById(R.id.cheat_list_container);
@@ -93,7 +93,7 @@ public class CheatsActivity extends AppCompatActivity
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater inflater = getMenuInflater();
-        inflater.inflate(R.menu.menu_settings, menu);
+        inflater.inflate(R.menu.menu_settings_citra, menu);
 
         return true;
     }

@@ -27,7 +27,7 @@ public class CopyDirProgressDialog extends DialogFragment {
         final FragmentActivity activity = requireActivity();
 
         LayoutInflater inflater = getLayoutInflater();
-        View view = inflater.inflate(R.layout.dialog_progress_bar, null);
+        View view = inflater.inflate(R.layout.dialog_progress_bar_citra, null);
 
         progressBar = view.findViewById(R.id.progress_bar);
         progressText = view.findViewById(R.id.progress_text);

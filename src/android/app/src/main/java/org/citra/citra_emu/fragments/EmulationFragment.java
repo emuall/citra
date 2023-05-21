@@ -92,7 +92,7 @@ public final class EmulationFragment extends Fragment implements SurfaceHolder.C
      */
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-        View contents = inflater.inflate(R.layout.fragment_emulation, container, false);
+        View contents = inflater.inflate(R.layout.fragment_emulation_citra, container, false);
 
         SurfaceView surfaceView = contents.findViewById(R.id.surface_emulation);
         surfaceView.getHolder().addCallback(this);

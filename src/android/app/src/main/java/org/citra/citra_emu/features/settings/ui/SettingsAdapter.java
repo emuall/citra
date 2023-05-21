@@ -69,36 +69,36 @@ public final class SettingsAdapter extends RecyclerView.Adapter<SettingViewHolde
 
         switch (viewType) {
             case SettingsItem.TYPE_HEADER:
-                view = inflater.inflate(R.layout.list_item_settings_header, parent, false);
+                view = inflater.inflate(R.layout.list_item_settings_header_citra, parent, false);
                 return new HeaderViewHolder(view, this);
 
             case SettingsItem.TYPE_CHECKBOX:
-                view = inflater.inflate(R.layout.list_item_setting_checkbox, parent, false);
+                view = inflater.inflate(R.layout.list_item_setting_checkbox_citra, parent, false);
                 return new CheckBoxSettingViewHolder(view, this);
 
             case SettingsItem.TYPE_SINGLE_CHOICE:
             case SettingsItem.TYPE_STRING_SINGLE_CHOICE:
-                view = inflater.inflate(R.layout.list_item_setting, parent, false);
+                view = inflater.inflate(R.layout.list_item_setting_citra, parent, false);
                 return new SingleChoiceViewHolder(view, this);
 
             case SettingsItem.TYPE_SLIDER:
-                view = inflater.inflate(R.layout.list_item_setting, parent, false);
+                view = inflater.inflate(R.layout.list_item_setting_citra, parent, false);
                 return new SliderViewHolder(view, this);
 
             case SettingsItem.TYPE_SUBMENU:
-                view = inflater.inflate(R.layout.list_item_setting, parent, false);
+                view = inflater.inflate(R.layout.list_item_setting_citra, parent, false);
                 return new SubmenuViewHolder(view, this);
 
             case SettingsItem.TYPE_INPUT_BINDING:
-                view = inflater.inflate(R.layout.list_item_setting, parent, false);
+                view = inflater.inflate(R.layout.list_item_setting_citra, parent, false);
                 return new InputBindingSettingViewHolder(view, this, mContext);
 
             case SettingsItem.TYPE_DATETIME_SETTING:
-                view = inflater.inflate(R.layout.list_item_setting, parent, false);
+                view = inflater.inflate(R.layout.list_item_setting_citra, parent, false);
                 return new DateTimeViewHolder(view, this);
 
             case SettingsItem.TYPE_PREMIUM:
-                view = inflater.inflate(R.layout.premium_item_setting, parent, false);
+                view = inflater.inflate(R.layout.premium_item_setting_citra, parent, false);
                 return new PremiumViewHolder(view, this, mView);
 
             default:
@@ -223,7 +223,7 @@ public final class SettingsAdapter extends RecyclerView.Adapter<SettingViewHolde
         mClickedPosition = position;
 
         LayoutInflater inflater = LayoutInflater.from(mView.getActivity());
-        View view = inflater.inflate(R.layout.sysclock_datetime_picker, null);
+        View view = inflater.inflate(R.layout.sysclock_datetime_picker_citra, null);
 
         DatePicker dp = view.findViewById(R.id.date_picker);
         TimePicker tp = view.findViewById(R.id.time_picker);
@@ -272,7 +272,7 @@ public final class SettingsAdapter extends RecyclerView.Adapter<SettingViewHolde
         mSliderProgress = item.getSelectedValue();
 
         LayoutInflater inflater = LayoutInflater.from(mView.getActivity());
-        View view = inflater.inflate(R.layout.dialog_slider, null);
+        View view = inflater.inflate(R.layout.dialog_slider_citra, null);
 
         Slider slider = view.findViewById(R.id.slider);
 

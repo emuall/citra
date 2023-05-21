@@ -69,7 +69,7 @@ public final class SettingsFragment extends Fragment implements SettingsFragment
     @Nullable
     @Override
     public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        return inflater.inflate(R.layout.fragment_settings, container, false);
+        return inflater.inflate(R.layout.fragment_settings_citra, container, false);
     }
 
     @Override
