@@ -37,7 +37,8 @@ public final class DirectoryInitialization {
     public static void start(Context context) {
         // Can take a few seconds to run, so don't block UI thread.
         //noinspection TrivialFunctionalExpressionUsage
-        ((Runnable) () -> init(context)).run();
+//        ((Runnable) () -> init(context)).run();
+        init(context);
     }
 
     private static void init(Context context) {
@@ -45,8 +46,7 @@ public final class DirectoryInitialization {
             return;
 
         if (directoryState != DirectoryInitializationState.CITRA_DIRECTORIES_INITIALIZED) {
-//            if (PermissionsHandler.hasWriteAccess(context)) {
-                if (setCitraUserDirectory(context)) {
+                if (setCitraUserDirectory()) {
                     initializeInternalStorage(context);
                     CitraApplication.documentsTree.setRoot(Uri.parse(userPath));
                     NativeLibrary.CreateLogFile();
@@ -56,9 +56,6 @@ public final class DirectoryInitialization {
                 } else {
                     directoryState = DirectoryInitializationState.CANT_FIND_EXTERNAL_STORAGE;
                 }
-//            } else {
-//                directoryState = DirectoryInitializationState.EXTERNAL_STORAGE_PERMISSION_NEEDED;
-//            }
         }
 
         isCitraDirectoryInitializationRunning.set(false);
@@ -94,30 +91,11 @@ public final class DirectoryInitialization {
 
     private static native void SetSysDirectory(String path);
 
-    private static boolean setCitraUserDirectory(Context context) {
-        SharedPreferences sp = context.getSharedPreferences("citra-emu", Context.MODE_MULTI_PROCESS);
-        String isCopy = sp.getString("citra","no");
-        if (!isCopy.equals("yes")) {
-            userPath = context.getFilesDir() + "/citra-emu/";
-            String newUserPath = PermissionsHandler.getCitraDirectory(context);
-            sp.edit().putString("citra","yes").apply();
-            userPath = newUserPath;
-        } else {
-            userPath = PermissionsHandler.getCitraDirectory(context);
-        }
-        Log.debug("[DirectoryInitialization] User Dir: " + userPath);
-        NativeLibrary.SetUserDirectory(userPath);
-        return true;
-    }
     private static boolean setCitraUserDirectory() {
-        Uri dataPath = PermissionsHandler.getCitraDirectory();
-        if (dataPath != null) {
-            userPath = dataPath.toString();
-            Log.debug("[DirectoryInitialization] User Dir: " + userPath);
-            return true;
-        }
-
-        return false;
+        String citraDirectory = PermissionsHandler.getCitraDirectory(CitraApplication.getAppContext());
+        PermissionsHandler.setCitraDirectory(citraDirectory);
+        userPath = citraDirectory;
+        return true;
     }
 
     private static void initializeInternalStorage(Context context) {

@@ -19,21 +19,21 @@ import org.citra.citra_emu.utils.PermissionsHandler;
 public class CitraApplication extends Application {
     public static GameDatabase databaseHelper;
     public static DocumentsFileTree documentsTree;
-    private static CitraApplication application;
+    private static Application application;
 
-    private void createNotificationChannel() {
+    private static void createNotificationChannel(Application app) {
         // Create the NotificationChannel, but only on API 26+ because
         // the NotificationChannel class is new and not in the support library
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            CharSequence name = getString(R.string.app_notification_channel_name);
-            String description = getString(R.string.app_notification_channel_description);
-            NotificationChannel channel = new NotificationChannel(getString(R.string.app_notification_channel_id), name, NotificationManager.IMPORTANCE_LOW);
+            CharSequence name = app.getString(R.string.app_notification_channel_name);
+            String description = app.getString(R.string.app_notification_channel_description);
+            NotificationChannel channel = new NotificationChannel(app.getString(R.string.app_notification_channel_id), name, NotificationManager.IMPORTANCE_LOW);
             channel.setDescription(description);
             channel.setSound(null, null);
             channel.setVibrationPattern(null);
             // Register the channel with the system; you can't change the importance
             // or other notification behaviors after this
-            NotificationManager notificationManager = getSystemService(NotificationManager.class);
+            NotificationManager notificationManager = app.getSystemService(NotificationManager.class);
             notificationManager.createNotificationChannel(channel);
         }
     }
@@ -41,20 +41,32 @@ public class CitraApplication extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
-        application = this;
+        init(this);
+    }
+
+    public static void init(Application app) {
+
+        application = app;
         documentsTree = new DocumentsFileTree();
 
-        if (PermissionsHandler.hasWriteAccess(getApplicationContext())) {
-            DirectoryInitialization.start(getApplicationContext());
-        }
+//        if (PermissionsHandler.hasWriteAccess(getApplicationContext())) {
+        DirectoryInitialization.start(app);
+//        }
 
         NativeLibrary.LogDeviceInfo();
-        createNotificationChannel();
+        createNotificationChannel(app);
 
-        databaseHelper = new GameDatabase(this);
+        databaseHelper = new GameDatabase(app);
+    }
+
+    public static void setAppContext(Application application) {
+        init(application);
     }
 
     public static Context getAppContext() {
-        return application.getApplicationContext();
+        if (application == null) {
+            return null;
+        }
+        return application;
     }
 }
