@@ -37,7 +37,6 @@ import org.citra.citra_emu.model.GameProvider;
 import org.citra.citra_emu.ui.platform.PlatformGamesFragment;
 import org.citra.citra_emu.utils.AddDirectoryHelper;
 //import org.citra.citra_emu.utils.BillingManager;
-import org.citra.citra_emu.utils.BillingManager;
 import org.citra.citra_emu.utils.CiaInstallWorker;
 import org.citra.citra_emu.utils.CitraDirectoryHelper;
 import org.citra.citra_emu.utils.DirectoryInitialization;

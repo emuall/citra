@@ -19,21 +19,21 @@ import org.citra.citra_emu.utils.PermissionsHandler;
 public class CitraApplication extends Application {
     public static GameDatabase databaseHelper;
     public static DocumentsFileTree documentsTree;
-    private static CitraApplication application;
+    private static Application application;
 
-    private void createNotificationChannel() {
+    private static void createNotificationChannel(Application app) {
         // Create the NotificationChannel, but only on API 26+ because
         // the NotificationChannel class is new and not in the support library
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
             return;
         }
-        NotificationManager notificationManager = getSystemService(NotificationManager.class);
+        NotificationManager notificationManager = app.getSystemService(NotificationManager.class);
         {
             // General notification
-            CharSequence name = getString(R.string.app_notification_channel_name);
-            String description = getString(R.string.app_notification_channel_description);
+            CharSequence name = app.getString(R.string.app_notification_channel_name);
+            String description = app.getString(R.string.app_notification_channel_description);
             NotificationChannel channel = new NotificationChannel(
-                    getString(R.string.app_notification_channel_id), name,
+                    app.getString(R.string.app_notification_channel_id), name,
                     NotificationManager.IMPORTANCE_LOW);
             channel.setDescription(description);
             channel.setSound(null, null);
@@ -44,10 +44,10 @@ public class CitraApplication extends Application {
         {
             // CIA Install notifications
             NotificationChannel channel = new NotificationChannel(
-                    getString(R.string.cia_install_notification_channel_id),
-                    getString(R.string.cia_install_notification_channel_name),
+                    app.getString(R.string.cia_install_notification_channel_id),
+                    app.getString(R.string.cia_install_notification_channel_name),
                     NotificationManager.IMPORTANCE_DEFAULT);
-            channel.setDescription(getString(R.string.cia_install_notification_channel_description));
+            channel.setDescription(app.getString(R.string.cia_install_notification_channel_description));
             channel.setSound(null, null);
             channel.setVibrationPattern(null);
 
@@ -58,20 +58,32 @@ public class CitraApplication extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
-        application = this;
+        init(this);
+    }
+
+    public static void init(Application app) {
+
+        application = app;
         documentsTree = new DocumentsFileTree();
 
-        if (PermissionsHandler.hasWriteAccess(getApplicationContext())) {
-            DirectoryInitialization.start(getApplicationContext());
-        }
+//        if (PermissionsHandler.hasWriteAccess(getApplicationContext())) {
+        DirectoryInitialization.start(app);
+//        }
 
         NativeLibrary.LogDeviceInfo();
-        createNotificationChannel();
+        createNotificationChannel(app);
 
-        databaseHelper = new GameDatabase(this);
+        databaseHelper = new GameDatabase(app);
+    }
+
+    public static void setAppContext(Application application) {
+        init(application);
     }
 
     public static Context getAppContext() {
-        return application.getApplicationContext();
+        if (application == null) {
+            return null;
+        }
+        return application;
     }
 }
