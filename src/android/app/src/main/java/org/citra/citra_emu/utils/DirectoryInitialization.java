@@ -95,6 +95,7 @@ public final class DirectoryInitialization {
         String citraDirectory = PermissionsHandler.getCitraDirectory(CitraApplication.getAppContext());
         PermissionsHandler.setCitraDirectory(citraDirectory);
         userPath = citraDirectory;
+        CitraApplication.documentsTree.setRoot(Uri.parse(userPath));
         return true;
     }
 
