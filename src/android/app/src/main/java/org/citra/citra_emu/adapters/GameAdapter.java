@@ -237,8 +237,18 @@ public final class GameAdapter extends RecyclerView.Adapter<GameViewHolder> {
     }
 
     private boolean isValidGame(String path) {
-        return Stream.of(
-                ".rar", ".zip", ".7z", ".torrent", ".tar", ".gz").noneMatch(suffix -> path.toLowerCase().endsWith(suffix));
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            return Stream.of(
+                    ".rar", ".zip", ".7z", ".torrent", ".tar", ".gz").noneMatch(suffix -> path.toLowerCase().endsWith(suffix));
+        } else {
+            String[] exts = new String[] {".rar", ".zip", ".7z", ".torrent", ".tar", ".gz"};
+            for (String ext:exts) {
+                if(path.toLowerCase().endsWith(ext)) {
+                    return false;
+                }
+            }
+            return true;
+        }
     }
 
     private final class GameDataSetObserver extends DataSetObserver {

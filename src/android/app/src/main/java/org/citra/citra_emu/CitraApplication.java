@@ -18,7 +18,7 @@ import org.citra.citra_emu.utils.PermissionsHandler;
 
 public class CitraApplication extends Application {
     public static GameDatabase databaseHelper;
-    public static DocumentsFileTree documentsTree;
+    public static final DocumentsFileTree documentsTree = new DocumentsFileTree();
     private static Application application;
 
     private static void createNotificationChannel(Application app) {
@@ -64,7 +64,6 @@ public class CitraApplication extends Application {
     public static void init(Application app) {
 
         application = app;
-        documentsTree = new DocumentsFileTree();
 
 //        if (PermissionsHandler.hasWriteAccess(getApplicationContext())) {
         DirectoryInitialization.start(app);
