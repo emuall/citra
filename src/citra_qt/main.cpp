@@ -387,6 +387,7 @@ void GMainWindow::InitializeWidgets() {
     actionGroup_ScreenLayouts->addAction(ui->action_Screen_Layout_Default);
     actionGroup_ScreenLayouts->addAction(ui->action_Screen_Layout_Single_Screen);
     actionGroup_ScreenLayouts->addAction(ui->action_Screen_Layout_Large_Screen);
+    actionGroup_ScreenLayouts->addAction(ui->action_Screen_Layout_Hybrid_Screen);
     actionGroup_ScreenLayouts->addAction(ui->action_Screen_Layout_Side_by_Side);
     actionGroup_ScreenLayouts->addAction(ui->action_Screen_Layout_Separate_Windows);
 }
@@ -800,6 +801,7 @@ void GMainWindow::ConnectMenuEvents() {
     connect_menu(ui->action_Screen_Layout_Default, &GMainWindow::ChangeScreenLayout);
     connect_menu(ui->action_Screen_Layout_Single_Screen, &GMainWindow::ChangeScreenLayout);
     connect_menu(ui->action_Screen_Layout_Large_Screen, &GMainWindow::ChangeScreenLayout);
+    connect_menu(ui->action_Screen_Layout_Hybrid_Screen, &GMainWindow::ChangeScreenLayout);
     connect_menu(ui->action_Screen_Layout_Side_by_Side, &GMainWindow::ChangeScreenLayout);
     connect_menu(ui->action_Screen_Layout_Separate_Windows, &GMainWindow::ChangeScreenLayout);
     connect_menu(ui->action_Screen_Layout_Swap_Screens, &GMainWindow::OnSwapScreens);
@@ -1883,6 +1885,8 @@ void GMainWindow::ChangeScreenLayout() {
         new_layout = Settings::LayoutOption::SingleScreen;
     } else if (ui->action_Screen_Layout_Large_Screen->isChecked()) {
         new_layout = Settings::LayoutOption::LargeScreen;
+    } else if (ui->action_Screen_Layout_Hybrid_Screen->isChecked()) {
+        new_layout = Settings::LayoutOption::HybridScreen;
     } else if (ui->action_Screen_Layout_Side_by_Side->isChecked()) {
         new_layout = Settings::LayoutOption::SideScreen;
     } else if (ui->action_Screen_Layout_Separate_Windows->isChecked()) {
@@ -1902,6 +1906,8 @@ void GMainWindow::ToggleScreenLayout() {
         case Settings::LayoutOption::SingleScreen:
             return Settings::LayoutOption::LargeScreen;
         case Settings::LayoutOption::LargeScreen:
+            return Settings::LayoutOption::HybridScreen;
+        case Settings::LayoutOption::HybridScreen:
             return Settings::LayoutOption::SideScreen;
         case Settings::LayoutOption::SideScreen:
             return Settings::LayoutOption::SeparateWindows;
@@ -2011,6 +2017,25 @@ void GMainWindow::OnLoadAmiibo() {
         return;
     }
 
+    Core::System& system{Core::System::GetInstance()};
+    Service::SM::ServiceManager& sm = system.ServiceManager();
+    auto nfc = sm.GetService<Service::NFC::Module::Interface>("nfc:u");
+    if (nfc == nullptr) {
+        return;
+    }
+
+    if (nfc->IsTagActive()) {
+        QMessageBox::warning(this, tr("Error opening amiibo data file"),
+                             tr("A tag is already in use."));
+        return;
+    }
+
+    if (!nfc->IsSearchingForAmiibos()) {
+        QMessageBox::warning(this, tr("Error opening amiibo data file"),
+                             tr("Game is not looking for amiibos."));
+        return;
+    }
+
     const QString extensions{QStringLiteral("*.bin")};
     const QString file_filter = tr("Amiibo File (%1);; All Files (*.*)").arg(extensions);
     const QString filename = QFileDialog::getOpenFileName(this, tr("Load Amiibo"), {}, file_filter);
@@ -2029,26 +2054,12 @@ void GMainWindow::LoadAmiibo(const QString& filename) {
         return;
     }
 
-    QFile nfc_file{filename};
-    if (!nfc_file.open(QIODevice::ReadOnly)) {
-        QMessageBox::warning(this, tr("Error opening Amiibo data file"),
-                             tr("Unable to open Amiibo file \"%1\" for reading.").arg(filename));
+    if (!nfc->LoadAmiibo(filename.toStdString())) {
+        QMessageBox::warning(this, tr("Error opening amiibo data file"),
+                             tr("Unable to open amiibo file \"%1\" for reading.").arg(filename));
         return;
     }
 
-    Service::NFC::AmiiboData amiibo_data{};
-    const u64 read_size =
-        nfc_file.read(reinterpret_cast<char*>(&amiibo_data), sizeof(Service::NFC::AmiiboData));
-    if (read_size != sizeof(Service::NFC::AmiiboData)) {
-        QMessageBox::warning(this, tr("Error reading Amiibo data file"),
-                             tr("Unable to fully read Amiibo data. Expected to read %1 bytes, but "
-                                "was only able to read %2 bytes.")
-                                 .arg(sizeof(Service::NFC::AmiiboData))
-                                 .arg(read_size));
-        return;
-    }
-
-    nfc->LoadAmiibo(amiibo_data);
     ui->action_Remove_Amiibo->setEnabled(true);
 }
 
@@ -2774,6 +2785,8 @@ void GMainWindow::SyncMenuUISettings() {
                                                        Settings::LayoutOption::SingleScreen);
     ui->action_Screen_Layout_Large_Screen->setChecked(Settings::values.layout_option.GetValue() ==
                                                       Settings::LayoutOption::LargeScreen);
+    ui->action_Screen_Layout_Hybrid_Screen->setChecked(Settings::values.layout_option.GetValue() ==
+                                                       Settings::LayoutOption::HybridScreen);
     ui->action_Screen_Layout_Side_by_Side->setChecked(Settings::values.layout_option.GetValue() ==
                                                       Settings::LayoutOption::SideScreen);
     ui->action_Screen_Layout_Separate_Windows->setChecked(
