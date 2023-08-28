@@ -99,6 +99,11 @@ PicaFSConfig PicaFSConfig::BuildFromRegs(const Pica::Regs& regs, bool use_normal
         state.tev_stages[i].modifiers_raw = tev_stage.modifiers_raw;
         state.tev_stages[i].ops_raw = tev_stage.ops_raw;
         state.tev_stages[i].scales_raw = tev_stage.scales_raw;
+        if (tev_stage.color_op == TevStageConfig::Operation::Dot3_RGBA) {
+            state.tev_stages[i].sources_raw &= 0xFFF;
+            state.tev_stages[i].modifiers_raw &= 0xFFF;
+            state.tev_stages[i].ops_raw &= 0xF;
+        }
     }
 
     state.fog_mode = regs.texturing.fog_mode;
@@ -109,75 +114,99 @@ PicaFSConfig PicaFSConfig::BuildFromRegs(const Pica::Regs& regs, bool use_normal
                                       << 4;
 
     // Fragment lighting
-
     state.lighting.enable = !regs.lighting.disable;
-    state.lighting.src_num = regs.lighting.max_light_index + 1;
+    if (state.lighting.enable) {
+        state.lighting.src_num = regs.lighting.max_light_index + 1;
 
-    for (unsigned light_index = 0; light_index < state.lighting.src_num; ++light_index) {
-        unsigned num = regs.lighting.light_enable.GetNum(light_index);
-        const auto& light = regs.lighting.light[num];
-        state.lighting.light[light_index].num = num;
-        state.lighting.light[light_index].directional = light.config.directional != 0;
-        state.lighting.light[light_index].two_sided_diffuse = light.config.two_sided_diffuse != 0;
-        state.lighting.light[light_index].geometric_factor_0 = light.config.geometric_factor_0 != 0;
-        state.lighting.light[light_index].geometric_factor_1 = light.config.geometric_factor_1 != 0;
-        state.lighting.light[light_index].dist_atten_enable =
-            !regs.lighting.IsDistAttenDisabled(num);
-        state.lighting.light[light_index].spot_atten_enable =
-            !regs.lighting.IsSpotAttenDisabled(num);
-        state.lighting.light[light_index].shadow_enable = !regs.lighting.IsShadowDisabled(num);
+        for (unsigned light_index = 0; light_index < state.lighting.src_num; ++light_index) {
+            unsigned num = regs.lighting.light_enable.GetNum(light_index);
+            const auto& light = regs.lighting.light[num];
+            state.lighting.light[light_index].num = num;
+            state.lighting.light[light_index].directional = light.config.directional != 0;
+            state.lighting.light[light_index].two_sided_diffuse =
+                light.config.two_sided_diffuse != 0;
+            state.lighting.light[light_index].geometric_factor_0 =
+                light.config.geometric_factor_0 != 0;
+            state.lighting.light[light_index].geometric_factor_1 =
+                light.config.geometric_factor_1 != 0;
+            state.lighting.light[light_index].dist_atten_enable =
+                !regs.lighting.IsDistAttenDisabled(num);
+            state.lighting.light[light_index].spot_atten_enable =
+                !regs.lighting.IsSpotAttenDisabled(num);
+            state.lighting.light[light_index].shadow_enable = !regs.lighting.IsShadowDisabled(num);
+        }
+
+        state.lighting.lut_d0.enable = regs.lighting.config1.disable_lut_d0 == 0;
+        if (state.lighting.lut_d0.enable) {
+            state.lighting.lut_d0.abs_input = regs.lighting.abs_lut_input.disable_d0 == 0;
+            state.lighting.lut_d0.type = regs.lighting.lut_input.d0.Value();
+            state.lighting.lut_d0.scale =
+                regs.lighting.lut_scale.GetScale(regs.lighting.lut_scale.d0);
+        }
+
+        state.lighting.lut_d1.enable = regs.lighting.config1.disable_lut_d1 == 0;
+        if (state.lighting.lut_d1.enable) {
+            state.lighting.lut_d1.abs_input = regs.lighting.abs_lut_input.disable_d1 == 0;
+            state.lighting.lut_d1.type = regs.lighting.lut_input.d1.Value();
+            state.lighting.lut_d1.scale =
+                regs.lighting.lut_scale.GetScale(regs.lighting.lut_scale.d1);
+        }
+
+        // this is a dummy field due to lack of the corresponding register
+        state.lighting.lut_sp.enable = true;
+        state.lighting.lut_sp.abs_input = regs.lighting.abs_lut_input.disable_sp == 0;
+        state.lighting.lut_sp.type = regs.lighting.lut_input.sp.Value();
+        state.lighting.lut_sp.scale = regs.lighting.lut_scale.GetScale(regs.lighting.lut_scale.sp);
+
+        state.lighting.lut_fr.enable = regs.lighting.config1.disable_lut_fr == 0;
+        if (state.lighting.lut_fr.enable) {
+            state.lighting.lut_fr.abs_input = regs.lighting.abs_lut_input.disable_fr == 0;
+            state.lighting.lut_fr.type = regs.lighting.lut_input.fr.Value();
+            state.lighting.lut_fr.scale =
+                regs.lighting.lut_scale.GetScale(regs.lighting.lut_scale.fr);
+        }
+
+        state.lighting.lut_rr.enable = regs.lighting.config1.disable_lut_rr == 0;
+        if (state.lighting.lut_rr.enable) {
+            state.lighting.lut_rr.abs_input = regs.lighting.abs_lut_input.disable_rr == 0;
+            state.lighting.lut_rr.type = regs.lighting.lut_input.rr.Value();
+            state.lighting.lut_rr.scale =
+                regs.lighting.lut_scale.GetScale(regs.lighting.lut_scale.rr);
+        }
+
+        state.lighting.lut_rg.enable = regs.lighting.config1.disable_lut_rg == 0;
+        if (state.lighting.lut_rg.enable) {
+            state.lighting.lut_rg.abs_input = regs.lighting.abs_lut_input.disable_rg == 0;
+            state.lighting.lut_rg.type = regs.lighting.lut_input.rg.Value();
+            state.lighting.lut_rg.scale =
+                regs.lighting.lut_scale.GetScale(regs.lighting.lut_scale.rg);
+        }
+
+        state.lighting.lut_rb.enable = regs.lighting.config1.disable_lut_rb == 0;
+        if (state.lighting.lut_rb.enable) {
+            state.lighting.lut_rb.abs_input = regs.lighting.abs_lut_input.disable_rb == 0;
+            state.lighting.lut_rb.type = regs.lighting.lut_input.rb.Value();
+            state.lighting.lut_rb.scale =
+                regs.lighting.lut_scale.GetScale(regs.lighting.lut_scale.rb);
+        }
+
+        state.lighting.config = regs.lighting.config0.config;
+        state.lighting.enable_primary_alpha = regs.lighting.config0.enable_primary_alpha;
+        state.lighting.enable_secondary_alpha = regs.lighting.config0.enable_secondary_alpha;
+        state.lighting.bump_mode = regs.lighting.config0.bump_mode;
+        state.lighting.bump_selector = regs.lighting.config0.bump_selector;
+        state.lighting.bump_renorm = regs.lighting.config0.disable_bump_renorm == 0;
+        state.lighting.clamp_highlights = regs.lighting.config0.clamp_highlights != 0;
+
+        state.lighting.enable_shadow = regs.lighting.config0.enable_shadow != 0;
+        if (state.lighting.enable_shadow) {
+            state.lighting.shadow_primary = regs.lighting.config0.shadow_primary != 0;
+            state.lighting.shadow_secondary = regs.lighting.config0.shadow_secondary != 0;
+            state.lighting.shadow_invert = regs.lighting.config0.shadow_invert != 0;
+            state.lighting.shadow_alpha = regs.lighting.config0.shadow_alpha != 0;
+            state.lighting.shadow_selector = regs.lighting.config0.shadow_selector;
+        }
     }
-
-    state.lighting.lut_d0.enable = regs.lighting.config1.disable_lut_d0 == 0;
-    state.lighting.lut_d0.abs_input = regs.lighting.abs_lut_input.disable_d0 == 0;
-    state.lighting.lut_d0.type = regs.lighting.lut_input.d0.Value();
-    state.lighting.lut_d0.scale = regs.lighting.lut_scale.GetScale(regs.lighting.lut_scale.d0);
-
-    state.lighting.lut_d1.enable = regs.lighting.config1.disable_lut_d1 == 0;
-    state.lighting.lut_d1.abs_input = regs.lighting.abs_lut_input.disable_d1 == 0;
-    state.lighting.lut_d1.type = regs.lighting.lut_input.d1.Value();
-    state.lighting.lut_d1.scale = regs.lighting.lut_scale.GetScale(regs.lighting.lut_scale.d1);
-
-    // this is a dummy field due to lack of the corresponding register
-    state.lighting.lut_sp.enable = true;
-    state.lighting.lut_sp.abs_input = regs.lighting.abs_lut_input.disable_sp == 0;
-    state.lighting.lut_sp.type = regs.lighting.lut_input.sp.Value();
-    state.lighting.lut_sp.scale = regs.lighting.lut_scale.GetScale(regs.lighting.lut_scale.sp);
-
-    state.lighting.lut_fr.enable = regs.lighting.config1.disable_lut_fr == 0;
-    state.lighting.lut_fr.abs_input = regs.lighting.abs_lut_input.disable_fr == 0;
-    state.lighting.lut_fr.type = regs.lighting.lut_input.fr.Value();
-    state.lighting.lut_fr.scale = regs.lighting.lut_scale.GetScale(regs.lighting.lut_scale.fr);
-
-    state.lighting.lut_rr.enable = regs.lighting.config1.disable_lut_rr == 0;
-    state.lighting.lut_rr.abs_input = regs.lighting.abs_lut_input.disable_rr == 0;
-    state.lighting.lut_rr.type = regs.lighting.lut_input.rr.Value();
-    state.lighting.lut_rr.scale = regs.lighting.lut_scale.GetScale(regs.lighting.lut_scale.rr);
-
-    state.lighting.lut_rg.enable = regs.lighting.config1.disable_lut_rg == 0;
-    state.lighting.lut_rg.abs_input = regs.lighting.abs_lut_input.disable_rg == 0;
-    state.lighting.lut_rg.type = regs.lighting.lut_input.rg.Value();
-    state.lighting.lut_rg.scale = regs.lighting.lut_scale.GetScale(regs.lighting.lut_scale.rg);
-
-    state.lighting.lut_rb.enable = regs.lighting.config1.disable_lut_rb == 0;
-    state.lighting.lut_rb.abs_input = regs.lighting.abs_lut_input.disable_rb == 0;
-    state.lighting.lut_rb.type = regs.lighting.lut_input.rb.Value();
-    state.lighting.lut_rb.scale = regs.lighting.lut_scale.GetScale(regs.lighting.lut_scale.rb);
-
-    state.lighting.config = regs.lighting.config0.config;
-    state.lighting.enable_primary_alpha = regs.lighting.config0.enable_primary_alpha;
-    state.lighting.enable_secondary_alpha = regs.lighting.config0.enable_secondary_alpha;
-    state.lighting.bump_mode = regs.lighting.config0.bump_mode;
-    state.lighting.bump_selector = regs.lighting.config0.bump_selector;
-    state.lighting.bump_renorm = regs.lighting.config0.disable_bump_renorm == 0;
-    state.lighting.clamp_highlights = regs.lighting.config0.clamp_highlights != 0;
-
-    state.lighting.enable_shadow = regs.lighting.config0.enable_shadow != 0;
-    state.lighting.shadow_primary = regs.lighting.config0.shadow_primary != 0;
-    state.lighting.shadow_secondary = regs.lighting.config0.shadow_secondary != 0;
-    state.lighting.shadow_invert = regs.lighting.config0.shadow_invert != 0;
-    state.lighting.shadow_alpha = regs.lighting.config0.shadow_alpha != 0;
-    state.lighting.shadow_selector = regs.lighting.config0.shadow_selector;
 
     state.proctex.enable = regs.texturing.main_config.texture3_enable;
     if (state.proctex.enable) {
@@ -202,8 +231,9 @@ PicaFSConfig PicaFSConfig::BuildFromRegs(const Pica::Regs& regs, bool use_normal
 
     state.shadow_rendering = regs.framebuffer.output_merger.fragment_operation_mode ==
                              FramebufferRegs::FragmentOperationMode::Shadow;
-
-    state.shadow_texture_orthographic = regs.texturing.shadow.orthographic != 0;
+    if (state.shadow_rendering) {
+        state.shadow_texture_orthographic = regs.texturing.shadow.orthographic != 0;
+    }
 
     state.use_custom_normal_map = use_normal;
 
@@ -1455,7 +1485,7 @@ vec4 secondary_fragment_color = vec4(0.0);
 
     out += "vec4 combiner_buffer = vec4(0.0);\n"
            "vec4 next_combiner_buffer = tev_combiner_buffer_color;\n"
-           "vec4 last_tex_env_out = vec4(0.0);\n";
+           "vec4 last_tex_env_out = rounded_primary_color;\n";
 
     for (std::size_t index = 0; index < state.tev_stages.size(); ++index) {
         WriteTevStage(out, config, static_cast<u32>(index));
