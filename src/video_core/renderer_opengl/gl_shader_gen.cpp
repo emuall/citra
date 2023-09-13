@@ -9,6 +9,7 @@
 #include "core/core.h"
 #include "core/telemetry_session.h"
 #include "video_core/pica_state.h"
+#include "video_core/renderer_opengl/gl_driver.h"
 #include "video_core/renderer_opengl/gl_shader_decompiler.h"
 #include "video_core/renderer_opengl/gl_shader_gen.h"
 #include "video_core/renderer_opengl/gl_shader_util.h"
@@ -25,7 +26,7 @@ using VSOutputAttributes = RasterizerRegs::VSOutputAttributes;
 
 namespace OpenGL {
 
-const std::string UniformBlockDef = Pica::Shader::BuildShaderUniformDefinitions();
+const std::string UniformBlockDef = Pica::Shader::BuildShaderUniformDefinitions("binding = 0,");
 
 static std::string GetVertexInterfaceDeclaration(bool is_output, bool separable_shader) {
     std::string out;
@@ -60,7 +61,8 @@ out gl_PerVertex {
     return out;
 }
 
-PicaFSConfig PicaFSConfig::BuildFromRegs(const Pica::Regs& regs, bool use_normal) {
+PicaFSConfig PicaFSConfig::BuildFromRegs(const Pica::Regs& regs, bool has_blend_minmax_factor,
+                                         bool use_normal) {
     PicaFSConfig res{};
 
     auto& state = res.state;
@@ -229,11 +231,32 @@ PicaFSConfig PicaFSConfig::BuildFromRegs(const Pica::Regs& regs, bool use_normal
         state.proctex.lut_filter = regs.texturing.proctex_lut.filter;
     }
 
+    const auto alpha_eq = regs.framebuffer.output_merger.alpha_blending.blend_equation_a.Value();
+    const auto rgb_eq = regs.framebuffer.output_merger.alpha_blending.blend_equation_rgb.Value();
+    if (regs.framebuffer.output_merger.alphablend_enable && !has_blend_minmax_factor) {
+        if (rgb_eq == Pica::FramebufferRegs::BlendEquation::Max ||
+            rgb_eq == Pica::FramebufferRegs::BlendEquation::Min) {
+            state.rgb_blend.emulate_blending = true;
+            state.rgb_blend.eq = rgb_eq;
+            state.rgb_blend.src_factor =
+                regs.framebuffer.output_merger.alpha_blending.factor_source_rgb;
+            state.rgb_blend.dst_factor =
+                regs.framebuffer.output_merger.alpha_blending.factor_dest_rgb;
+        }
+        if (alpha_eq == Pica::FramebufferRegs::BlendEquation::Max ||
+            alpha_eq == Pica::FramebufferRegs::BlendEquation::Min) {
+            state.alpha_blend.emulate_blending = true;
+            state.alpha_blend.eq = alpha_eq;
+            state.alpha_blend.src_factor =
+                regs.framebuffer.output_merger.alpha_blending.factor_source_a;
+            state.alpha_blend.dst_factor =
+                regs.framebuffer.output_merger.alpha_blending.factor_dest_a;
+        }
+    }
+
     state.shadow_rendering = regs.framebuffer.output_merger.fragment_operation_mode ==
                              FramebufferRegs::FragmentOperationMode::Shadow;
-    if (state.shadow_rendering) {
-        state.shadow_texture_orthographic = regs.texturing.shadow.orthographic != 0;
-    }
+    state.shadow_texture_orthographic = regs.texturing.shadow.orthographic != 0;
 
     state.use_custom_normal_map = use_normal;
 
@@ -1222,6 +1245,103 @@ float ProcTexNoiseCoef(vec2 x) {
     }
 }
 
+static void WriteLogicOp(std::string& out, const PicaFSConfig& config) {
+    if (!GLES || config.state.alphablend_enable) {
+        return;
+    }
+    switch (config.state.logic_op) {
+    case FramebufferRegs::LogicOp::Clear:
+        out += "color = vec4(0);\n";
+        break;
+    case FramebufferRegs::LogicOp::Set:
+        out += "color = vec4(1);\n";
+        break;
+    case FramebufferRegs::LogicOp::Copy:
+        // Take the color output as-is
+        break;
+    case FramebufferRegs::LogicOp::CopyInverted:
+        out += "color = ~color;\n";
+        break;
+    case FramebufferRegs::LogicOp::NoOp:
+        // We need to discard the color, but not necessarily the depth. This is not possible
+        // with fragment shader alone, so we emulate this behavior on GLES with glColorMask.
+        break;
+    default:
+        LOG_CRITICAL(HW_GPU, "Unhandled logic_op {:x}", static_cast<int>(config.state.logic_op));
+        UNIMPLEMENTED();
+    }
+}
+
+static void WriteBlending(std::string& out, const PicaFSConfig& config) {
+    if (!config.state.rgb_blend.emulate_blending && !config.state.alpha_blend.emulate_blending)
+        [[likely]] {
+        return;
+    }
+
+    using BlendFactor = Pica::FramebufferRegs::BlendFactor;
+    out += R"(
+vec4 source_color = last_tex_env_out;
+#if defined(GL_EXT_shader_framebuffer_fetch)
+vec4 dest_color = color;
+#elif defined(GL_ARM_shader_framebuffer_fetch)
+vec4 dest_color = gl_LastFragColorARM;
+#else
+vec4 dest_color = texelFetch(colorBuffer, ivec2(gl_FragCoord.xy), 0);
+#endif
+)";
+    const auto get_factor = [&](BlendFactor factor) -> std::string {
+        switch (factor) {
+        case BlendFactor::Zero:
+            return "vec4(0.f)";
+        case BlendFactor::One:
+            return "vec4(1.f)";
+        case BlendFactor::SourceColor:
+            return "source_color";
+        case BlendFactor::OneMinusSourceColor:
+            return "vec4(1.f) - source_color";
+        case BlendFactor::DestColor:
+            return "dest_color";
+        case BlendFactor::OneMinusDestColor:
+            return "vec4(1.f) - dest_color";
+        case BlendFactor::SourceAlpha:
+            return "source_color.aaaa";
+        case BlendFactor::OneMinusSourceAlpha:
+            return "vec4(1.f) - source_color.aaaa";
+        case BlendFactor::DestAlpha:
+            return "dest_color.aaaa";
+        case BlendFactor::OneMinusDestAlpha:
+            return "vec4(1.f) - dest_color.aaaa";
+        case BlendFactor::ConstantColor:
+            return "blend_color";
+        case BlendFactor::OneMinusConstantColor:
+            return "vec4(1.f) - blend_color";
+        case BlendFactor::ConstantAlpha:
+            return "blend_color.aaaa";
+        case BlendFactor::OneMinusConstantAlpha:
+            return "vec4(1.f) - blend_color.aaaa";
+        default:
+            LOG_CRITICAL(Render_OpenGL, "Unknown blend factor {}", factor);
+            return "vec4(1.f)";
+        }
+    };
+    const auto get_func = [](Pica::FramebufferRegs::BlendEquation eq) {
+        return eq == Pica::FramebufferRegs::BlendEquation::Min ? "min" : "max";
+    };
+
+    if (config.state.rgb_blend.emulate_blending) {
+        out += fmt::format(
+            "last_tex_env_out.rgb = {}(source_color.rgb * ({}).rgb, dest_color.rgb * ({}).rgb);\n",
+            get_func(config.state.rgb_blend.eq), get_factor(config.state.rgb_blend.src_factor),
+            get_factor(config.state.rgb_blend.dst_factor));
+    }
+    if (config.state.alpha_blend.emulate_blending) {
+        out += fmt::format(
+            "last_tex_env_out.a = {}(source_color.a * ({}).a, dest_color.a * ({}).a);\n",
+            get_func(config.state.alpha_blend.eq), get_factor(config.state.alpha_blend.src_factor),
+            get_factor(config.state.alpha_blend.dst_factor));
+    }
+}
+
 ShaderDecompiler::ProgramResult GenerateFragmentShader(const PicaFSConfig& config,
                                                        bool separable_shader) {
     const auto& state = config.state;
@@ -1230,6 +1350,18 @@ ShaderDecompiler::ProgramResult GenerateFragmentShader(const PicaFSConfig& confi
     if (separable_shader && !GLES) {
         out += "#extension GL_ARB_separate_shader_objects : enable\n";
     }
+
+    // The extension directives need to come before non-preprocessor tokens
+    out += R"(
+#if defined(GL_EXT_shader_framebuffer_fetch)
+#extension GL_EXT_shader_framebuffer_fetch : enable
+#elif defined(GL_ARM_shader_framebuffer_fetch)
+#extension GL_ARM_shader_framebuffer_fetch : enable
+#else
+#define CITRA_NO_FRAMEBUFFER_FETCH 1
+#endif
+
+)";
 
     if (GLES) {
         out += fragment_shader_precision_OES;
@@ -1242,24 +1374,28 @@ ShaderDecompiler::ProgramResult GenerateFragmentShader(const PicaFSConfig& confi
 in vec4 gl_FragCoord;
 #endif // CITRA_GLES
 
-out vec4 color;
+layout(location = 0) out vec4 color;
 
-uniform sampler2D tex0;
-uniform sampler2D tex1;
-uniform sampler2D tex2;
-uniform sampler2D tex_normal; //< Used for custom normal maps
-uniform samplerCube tex_cube;
-uniform samplerBuffer texture_buffer_lut_lf;
-uniform samplerBuffer texture_buffer_lut_rg;
-uniform samplerBuffer texture_buffer_lut_rgba;
+layout(binding = 0) uniform sampler2D tex0;
+layout(binding = 1) uniform sampler2D tex1;
+layout(binding = 2) uniform sampler2D tex2;
+layout(binding = 3) uniform samplerBuffer texture_buffer_lut_lf;
+layout(binding = 4) uniform samplerBuffer texture_buffer_lut_rg;
+layout(binding = 5) uniform samplerBuffer texture_buffer_lut_rgba;
+layout(binding = 6) uniform samplerCube tex_cube;
+layout(binding = 7) uniform sampler2D tex_normal;
 
-layout(r32ui) uniform readonly uimage2D shadow_texture_px;
-layout(r32ui) uniform readonly uimage2D shadow_texture_nx;
-layout(r32ui) uniform readonly uimage2D shadow_texture_py;
-layout(r32ui) uniform readonly uimage2D shadow_texture_ny;
-layout(r32ui) uniform readonly uimage2D shadow_texture_pz;
-layout(r32ui) uniform readonly uimage2D shadow_texture_nz;
-layout(r32ui) uniform uimage2D shadow_buffer;
+layout(binding = 0, r32ui) uniform readonly uimage2D shadow_texture_px;
+layout(binding = 1, r32ui) uniform readonly uimage2D shadow_texture_nx;
+layout(binding = 2, r32ui) uniform readonly uimage2D shadow_texture_py;
+layout(binding = 3, r32ui) uniform readonly uimage2D shadow_texture_ny;
+layout(binding = 4, r32ui) uniform readonly uimage2D shadow_texture_pz;
+layout(binding = 5, r32ui) uniform readonly uimage2D shadow_texture_nz;
+layout(binding = 6, r32ui) uniform uimage2D shadow_buffer;
+
+#if defined(CITRA_NO_FRAMEBUFFER_FETCH)
+layout(location = 10) uniform sampler2D colorBuffer;
+#endif
 )";
 
     out += UniformBlockDef;
@@ -1552,34 +1688,12 @@ do {
     } else {
         out += "gl_FragDepth = depth;\n";
         // Round the final fragment color to maintain the PICA's 8 bits of precision
-        out += "color = byteround(last_tex_env_out);\n";
+        out += "last_tex_env_out = byteround(last_tex_env_out);\n";
+        WriteBlending(out, config);
+        out += "color = last_tex_env_out;\n";
     }
 
-    if (GLES) {
-        if (!state.alphablend_enable) {
-            switch (state.logic_op) {
-            case FramebufferRegs::LogicOp::Clear:
-                out += "color = vec4(0);\n";
-                break;
-            case FramebufferRegs::LogicOp::Set:
-                out += "color = vec4(1);\n";
-                break;
-            case FramebufferRegs::LogicOp::Copy:
-                // Take the color output as-is
-                break;
-            case FramebufferRegs::LogicOp::CopyInverted:
-                out += "color = ~color;\n";
-                break;
-            case FramebufferRegs::LogicOp::NoOp:
-                // We need to discard the color, but not necessarily the depth. This is not possible
-                // with fragment shader alone, so we emulate this behavior on GLES with glColorMask.
-                break;
-            default:
-                LOG_CRITICAL(HW_GPU, "Unhandled logic_op {:x}", static_cast<int>(state.logic_op));
-                UNIMPLEMENTED();
-            }
-        }
-    }
+    WriteLogicOp(out, config);
 
     out += '}';
 
@@ -1608,7 +1722,12 @@ ShaderDecompiler::ProgramResult GenerateTrivialVertexShader(bool separable_shade
 
     out += UniformBlockDef;
 
+    // Certain games render 2D elements very close to clip plane 0 resulting in very tiny
+    // negative/positive z values when computing with f32 precision,
+    // causing some vertices to get erroneously clipped. To workaround this problem,
+    // we can use a very small epsilon value for clip plane comparison.
     out += R"(
+const float EPSILON_Z = 0.00000001f;
 
 void main() {
     primary_color = vert_color;
@@ -1618,10 +1737,14 @@ void main() {
     texcoord0_w = vert_texcoord0_w;
     normquat = vert_normquat;
     view = vert_view;
-    gl_Position = vert_position;
+    vec4 vtx_pos = vert_position;
+    if (abs(vtx_pos.z) < EPSILON_Z) {
+        vtx_pos.z = 0.f;
+    }
+    gl_Position = vtx_pos;
 #if !defined(CITRA_GLES) || defined(GL_EXT_clip_cull_distance)
-    gl_ClipDistance[0] = -vert_position.z; // fixed PICA clipping plane z <= 0
-    gl_ClipDistance[1] = dot(clip_coef, vert_position);
+    gl_ClipDistance[0] = -vtx_pos.z; // fixed PICA clipping plane z <= 0
+    gl_ClipDistance[1] = dot(clip_coef, vtx_pos);
 #endif // !defined(CITRA_GLES) || defined(GL_EXT_clip_cull_distance)
 }
 )";
@@ -1664,7 +1787,7 @@ std::optional<ShaderDecompiler::ProgramResult> GenerateVertexShader(
 
     out += R"(
 #define uniforms vs_uniforms
-layout (std140) uniform vs_config {
+layout (binding = 1, std140) uniform vs_config {
     pica_uniforms uniforms;
 };
 
@@ -1721,6 +1844,7 @@ struct Vertex {
         return "0.0";
     };
 
+    out += "const float EPSILON_Z = 0.00000001f;\n\n";
     out += "vec4 GetVertexQuaternion(Vertex vtx) {\n";
     out += "    return vec4(" + semantic(VSOutputAttributes::QUATERNION_X) + ", " +
            semantic(VSOutputAttributes::QUATERNION_Y) + ", " +
@@ -1733,6 +1857,9 @@ struct Vertex {
            semantic(VSOutputAttributes::POSITION_Y) + ", " +
            semantic(VSOutputAttributes::POSITION_Z) + ", " +
            semantic(VSOutputAttributes::POSITION_W) + ");\n";
+    out += "    if (abs(vtx_pos.z) < EPSILON_Z) {\n";
+    out += "        vtx_pos.z = 0.f;\n";
+    out += "    }\n";
     out += "    gl_Position = vtx_pos;\n";
     out += "#if !defined(CITRA_GLES) || defined(GL_EXT_clip_cull_distance)\n";
     out += "    gl_ClipDistance[0] = -vtx_pos.z;\n"; // fixed PICA clipping plane z <= 0

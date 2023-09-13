@@ -334,7 +334,7 @@ private:
             return fmt::format("reg_tmp{}", index);
         case RegisterType::FloatUniform:
             if (address_register_index != 0) {
-                return fmt::format("uniforms.f[{} + address_registers.{}]", index,
+                return fmt::format("get_offset_register({}, address_registers.{})", index,
                                    "xyz"[address_register_index - 1]);
             }
             return fmt::format("uniforms.f[{}]", index);
@@ -476,12 +476,22 @@ private:
             }
 
             case OpCode::Id::MAX: {
-                SetDest(swizzle, dest_reg, fmt::format("max({}, {})", src1, src2), 4, 4);
+                if (sanitize_mul) {
+                    SetDest(swizzle, dest_reg,
+                            fmt::format("mix({1}, {0}, greaterThan({0}, {1}))", src1, src2), 4, 4);
+                } else {
+                    SetDest(swizzle, dest_reg, fmt::format("max({}, {})", src1, src2), 4, 4);
+                }
                 break;
             }
 
             case OpCode::Id::MIN: {
-                SetDest(swizzle, dest_reg, fmt::format("min({}, {})", src1, src2), 4, 4);
+                if (sanitize_mul) {
+                    SetDest(swizzle, dest_reg,
+                            fmt::format("mix({1}, {0}, lessThan({0}, {1}))", src1, src2), 4, 4);
+                } else {
+                    SetDest(swizzle, dest_reg, fmt::format("min({}, {})", src1, src2), 4, 4);
+                }
                 break;
             }
 
@@ -834,6 +844,14 @@ private:
             shader.AddLine("}}\n");
 #endif
         }
+
+        shader.AddLine("vec4 get_offset_register(int base_index, int offset) {{");
+        ++shader.scope;
+        shader.AddLine("int fixed_offset = offset >= -128 && offset <= 127 ? offset : 0;");
+        shader.AddLine("uint index = uint((base_index + fixed_offset) & 0x7F);");
+        shader.AddLine("return index < 96u ? uniforms.f[index] : vec4(1.0);");
+        --shader.scope;
+        shader.AddLine("}}\n");
 
         // Add declarations for registers
         shader.AddLine("bvec2 conditional_code = bvec2(false);");
