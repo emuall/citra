@@ -277,6 +277,10 @@ vk::InstanceCreateFlags GetInstanceFlags() {
 vk::UniqueInstance CreateInstance(const Common::DynamicLibrary& library,
                                   Frontend::WindowSystemType window_type, bool enable_validation,
                                   bool dump_command_buffers) {
+    if (!library.IsLoaded()) {
+        throw std::runtime_error("Failed to load Vulkan driver library");
+    }
+
     const auto vkGetInstanceProcAddr =
         library.GetSymbol<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr");
     if (!vkGetInstanceProcAddr) {
@@ -284,11 +288,16 @@ vk::UniqueInstance CreateInstance(const Common::DynamicLibrary& library,
     }
     VULKAN_HPP_DEFAULT_DISPATCHER.init(vkGetInstanceProcAddr);
 
-    const auto extensions = GetInstanceExtensions(window_type, enable_validation);
+    if (!VULKAN_HPP_DEFAULT_DISPATCHER.vkEnumerateInstanceVersion) {
+        throw std::runtime_error("Vulkan 1.0 is not supported, 1.1 is required!");
+    }
+
     const u32 available_version = vk::enumerateInstanceVersion();
     if (available_version < VK_API_VERSION_1_1) {
         throw std::runtime_error("Vulkan 1.0 is not supported, 1.1 is required!");
     }
+
+    const auto extensions = GetInstanceExtensions(window_type, enable_validation);
 
     const vk::ApplicationInfo application_info = {
         .pApplicationName = "Citra",
