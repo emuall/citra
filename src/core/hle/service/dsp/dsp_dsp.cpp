@@ -12,7 +12,7 @@
 #include "core/hle/service/dsp/dsp_dsp.h"
 
 using DspPipe = AudioCore::DspPipe;
-using InterruptType = Service::DSP::DSP_DSP::InterruptType;
+using InterruptType = Service::DSP::InterruptType;
 
 SERIALIZE_EXPORT_IMPL(Service::DSP::DSP_DSP)
 SERVICE_CONSTRUCT_IMPL(Service::DSP::DSP_DSP)
@@ -235,7 +235,8 @@ void DSP_DSP::RegisterInterruptEvents(Kernel::HLERequestContext& ctx) {
     const u32 channel = rp.Pop<u32>();
     auto event = rp.PopObject<Kernel::Event>();
 
-    ASSERT_MSG(interrupt < NUM_INTERRUPT_TYPE && channel < AudioCore::num_dsp_pipe,
+    ASSERT_MSG(interrupt < static_cast<u32>(InterruptType::Count) &&
+                   channel < AudioCore::num_dsp_pipe,
                "Invalid type or pipe: interrupt = {}, channel = {}", interrupt, channel);
 
     const InterruptType type = static_cast<InterruptType>(interrupt);
@@ -326,6 +327,9 @@ std::shared_ptr<Kernel::Event>& DSP_DSP::GetInterruptEvent(InterruptType type, D
         ASSERT(pipe_index < AudioCore::num_dsp_pipe);
         return pipes[pipe_index];
     }
+    case InterruptType::Count:
+    default:
+        break;
     }
     UNREACHABLE_MSG("Invalid interrupt type = {}", type);
 }
@@ -390,6 +394,12 @@ DSP_DSP::DSP_DSP(Core::System& system)
 
     semaphore_event->SetHLENotifier(
         [this]() { this->system.DSP().SetSemaphore(preset_semaphore); });
+
+    system.DSP().SetInterruptHandler([dsp_ref = this](InterruptType type, DspPipe pipe) {
+        if (dsp_ref) {
+            dsp_ref->SignalInterrupt(type, pipe);
+        }
+    });
 }
 
 DSP_DSP::~DSP_DSP() {
@@ -401,7 +411,6 @@ void InstallInterfaces(Core::System& system) {
     auto& service_manager = system.ServiceManager();
     auto dsp = std::make_shared<DSP_DSP>(system);
     dsp->InstallAsService(service_manager);
-    system.DSP().SetServiceToInterrupt(std::move(dsp));
 }
 
 } // namespace Service::DSP

@@ -93,11 +93,22 @@ option(USE_SYSTEM_SDL2 "Use the system SDL2 lib (instead of the bundled one)" OF
 option(USE_SYSTEM_BOOST "Use the system Boost libs (instead of the bundled ones)" OFF)
 option(USE_SYSTEM_OPENSSL "Use the system OpenSSL libs (instead of the bundled LibreSSL)" OFF)
 option(USE_SYSTEM_LIBUSB "Use the system libusb (instead of the bundled libusb)" OFF)
+option(USE_SYSTEM_CPP_JWT "Use the system cpp-jwt (instead of the bundled one)" OFF)
 option(USE_SYSTEM_SOUNDTOUCH "Use the system SoundTouch (instead of the bundled one)" OFF)
+option(USE_SYSTEM_CPP_HTTPLIB "Use the system cpp-httplib (instead of the bundled one)" OFF)
+option(USE_SYSTEM_JSON "Use the system JSON (nlohmann-json3) package (instead of the bundled one)" OFF)
+option(USE_SYSTEM_DYNARMIC "Use the system dynarmic (instead of the bundled one)" OFF)
+option(USE_SYSTEM_FMT "Use the system fmt (instead of the bundled one)" OFF)
+option(USE_SYSTEM_XBYAK "Use the system xbyak (instead of the bundled one)" OFF)
 
 if (CITRA_USE_PRECOMPILED_HEADERS)
     message(STATUS "Using Precompiled Headers.")
     set(CMAKE_PCH_INSTANTIATE_TEMPLATES ON)
+
+    # This ensures that pre-compiled headers won't invalidate build caches for every fresh checkout.
+    if(NOT MSVC AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        list(APPEND CMAKE_CXX_COMPILE_OPTIONS_CREATE_PCH -Xclang -fno-pch-timestamp)
+    endif()
 endif()
 
 if(NOT EXISTS ${PROJECT_SOURCE_DIR}/.git/hooks/pre-commit)
