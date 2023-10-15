@@ -8,6 +8,7 @@
 #include "core/telemetry_session.h"
 #include "video_core/custom_textures/custom_format.h"
 #include "video_core/renderer_opengl/gl_driver.h"
+#include "video_core/renderer_opengl/gl_vars.h"
 
 namespace OpenGL {
 
@@ -74,8 +75,7 @@ static void APIENTRY DebugHandler(GLenum source, GLenum type, GLuint id, GLenum 
                 GetType(type), id, message);
 }
 
-Driver::Driver(Core::TelemetrySession& telemetry_session_)
-    : telemetry_session{telemetry_session_}, is_gles{Settings::values.use_gles.GetValue()} {
+Driver::Driver(Core::TelemetrySession& telemetry_session_) : telemetry_session{telemetry_session_} {
     const bool enable_debug = Settings::values.renderer_debug.GetValue();
     if (enable_debug) {
         glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
@@ -83,6 +83,7 @@ Driver::Driver(Core::TelemetrySession& telemetry_session_)
     }
 
     ReportDriverInfo();
+    DeduceGLES();
     DeduceVendor();
     CheckExtensionSupport();
     FindBugs();
@@ -142,6 +143,14 @@ void Driver::ReportDriverInfo() {
     telemetry_session.AddField(user_system, "GPU_OpenGL_Version", std::string{gl_version});
 }
 
+void Driver::DeduceGLES() {
+    // According to the spec, all GLES version strings must start with "OpenGL ES".
+    is_gles = gl_version.starts_with("OpenGL ES");
+
+    // TODO: Eliminate this global state and replace with driver references.
+    OpenGL::GLES = is_gles;
+}
+
 void Driver::DeduceVendor() {
     if (gpu_vendor.find("NVIDIA") != gpu_vendor.npos) {
         vendor = Vendor::Nvidia;
@@ -168,7 +177,7 @@ void Driver::CheckExtensionSupport() {
     arb_clear_texture = GLAD_GL_ARB_clear_texture;
     arb_get_texture_sub_image = GLAD_GL_ARB_get_texture_sub_image;
     arb_texture_compression_bptc = GLAD_GL_ARB_texture_compression_bptc;
-    ext_clip_cull_distance = GLAD_GL_EXT_clip_cull_distance;
+    clip_cull_distance = !is_gles || GLAD_GL_EXT_clip_cull_distance;
     ext_texture_compression_s3tc = GLAD_GL_EXT_texture_compression_s3tc;
     shader_framebuffer_fetch =
         GLAD_GL_EXT_shader_framebuffer_fetch || GLAD_GL_ARM_shader_framebuffer_fetch;

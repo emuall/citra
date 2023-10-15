@@ -68,19 +68,44 @@ target_include_directories(dds-ktx INTERFACE ./dds-ktx)
 
 # fmt and Xbyak need to be added before dynarmic
 # libfmt
-option(FMT_INSTALL "" ON)
-add_subdirectory(fmt EXCLUDE_FROM_ALL)
+if(USE_SYSTEM_FMT)
+    add_library(fmt INTERFACE)
+    find_package(fmt REQUIRED)
+    target_link_libraries(fmt INTERFACE fmt::fmt)
+else()
+    option(FMT_INSTALL "" ON)
+    add_subdirectory(fmt EXCLUDE_FROM_ALL)
+endif()
+
 
 # Xbyak
 if ("x86_64" IN_LIST ARCHITECTURE)
-    add_subdirectory(xbyak EXCLUDE_FROM_ALL)
+    if(USE_SYSTEM_XBYAK)
+        find_package(xbyak REQUIRED)
+        add_library(xbyak INTERFACE)
+        target_link_libraries(xbyak INTERFACE xbyak::xbyak)
+    else()
+        add_subdirectory(xbyak EXCLUDE_FROM_ALL)
+    endif()
 endif()
 
 # Dynarmic
 if ("x86_64" IN_LIST ARCHITECTURE OR "arm64" IN_LIST ARCHITECTURE)
-    set(DYNARMIC_TESTS OFF CACHE BOOL "")
-    set(DYNARMIC_FRONTENDS "A32" CACHE STRING "")
-    add_subdirectory(dynarmic EXCLUDE_FROM_ALL)
+    if(USE_SYSTEM_DYNARMIC)
+        find_package(dynarmic REQUIRED)
+        add_library(dynarmic INTERFACE)
+        target_link_libraries(dynarmic INTERFACE dynarmic::dynarmic)
+        # The dynarmic package's cmake files are helpfully completely silent
+        # so we have to inform the user of its status ourselves
+        if(TARGET dynarmic::dynarmic)
+            message(STATUS "Found dynarmic")
+        endif()
+    else()
+        set(DYNARMIC_TESTS OFF CACHE BOOL "")
+        set(DYNARMIC_FRONTENDS "A32" CACHE STRING "")
+        set(DYNARMIC_USE_PRECOMPILED_HEADERS ${CITRA_USE_PRECOMPILED_HEADERS} CACHE BOOL "")
+        add_subdirectory(dynarmic EXCLUDE_FROM_ALL)
+    endif()
 endif()
 
 # getopt
@@ -175,7 +200,16 @@ endif()
 
 # JSON
 add_library(json-headers INTERFACE)
-target_include_directories(json-headers INTERFACE ./json)
+if (USE_SYSTEM_JSON)
+    find_package(nlohmann_json REQUIRED)
+    target_link_libraries(json-headers INTERFACE nlohmann_json::nlohmann_json)
+    get_target_property(NLOHMANN_PREFIX nlohmann_json::nlohmann_json INTERFACE_INCLUDE_DIRECTORIES)
+    # The nlohmann-json3 package expects "#include <nlohmann/json.hpp>"
+    # Citra uses "#include <json.hpp>" so we have to add this manually
+    target_include_directories(json-headers SYSTEM INTERFACE "${NLOHMANN_PREFIX}/nlohmann")
+else()
+    target_include_directories(json-headers SYSTEM INTERFACE ./json)
+endif()
 
 # OpenSSL
 if (USE_SYSTEM_OPENSSL)
@@ -190,7 +224,7 @@ if (NOT OPENSSL_FOUND)
     set(LIBRESSL_SKIP_INSTALL ON CACHE BOOL "")
     set(OPENSSLDIR "/etc/ssl/")
     add_subdirectory(libressl EXCLUDE_FROM_ALL)
-    target_include_directories(ssl INTERFACE ./libressl/include)
+    target_include_directories(ssl SYSTEM INTERFACE ./libressl/include)
     target_compile_definitions(ssl PRIVATE -DHAVE_INET_NTOP)
     get_directory_property(OPENSSL_LIBRARIES
         DIRECTORY libressl
@@ -199,7 +233,17 @@ endif()
 
 # httplib
 add_library(httplib INTERFACE)
-target_include_directories(httplib INTERFACE ./httplib)
+if(USE_SYSTEM_CPP_HTTPLIB)
+    find_package(CppHttp 0.14.1)
+    if(CppHttp_FOUND)
+        target_link_libraries(httplib INTERFACE httplib::httplib)
+    else()
+        message(STATUS "Cpp-httplib not found or not suitable version! Falling back to bundled...")
+        target_include_directories(httplib SYSTEM INTERFACE ./httplib)
+    endif()
+else()
+    target_include_directories(httplib SYSTEM INTERFACE ./httplib)
+endif()
 target_compile_options(httplib INTERFACE -DCPPHTTPLIB_OPENSSL_SUPPORT)
 target_link_libraries(httplib INTERFACE ${OPENSSL_LIBRARIES})
 
@@ -210,9 +254,15 @@ endif()
 
 # cpp-jwt
 if (ENABLE_WEB_SERVICE)
-    add_library(cpp-jwt INTERFACE)
-    target_include_directories(cpp-jwt INTERFACE ./cpp-jwt/include)
-    target_compile_definitions(cpp-jwt INTERFACE CPP_JWT_USE_VENDORED_NLOHMANN_JSON)
+    if (USE_SYSTEM_CPP_JWT)
+        find_package(cpp-jwt REQUIRED)
+        add_library(cpp-jwt INTERFACE)
+        target_link_libraries(cpp-jwt INTERFACE cpp-jwt::cpp-jwt)
+    else()
+        add_library(cpp-jwt INTERFACE)
+        target_include_directories(cpp-jwt SYSTEM INTERFACE ./cpp-jwt/include)
+        target_compile_definitions(cpp-jwt INTERFACE CPP_JWT_USE_VENDORED_NLOHMANN_JSON)
+    endif()
 endif()
 
 # lodepng
@@ -250,6 +300,6 @@ if (APPLE)
 endif()
 
 # adrenotools
-if (ANDROID)
+if (ANDROID AND "arm64" IN_LIST ARCHITECTURE)
     add_subdirectory(libadrenotools)
 endif()
