@@ -17,6 +17,12 @@ include(CMakeDependentOption)
 
 project(citra LANGUAGES C CXX ASM)
 
+# Some submodules like to pick their own default build type if not specified.
+# Make sure we default to Release build type always, unless the generator has custom types.
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
+endif()
+
 if (APPLE)
     # Silence warnings on empty objects, for example when platform-specific code is #ifdef'd out.
     set(CMAKE_C_ARCHIVE_CREATE "<CMAKE_AR> Scr <TARGET> <LINK_FLAGS> <OBJECTS>")
@@ -86,20 +92,7 @@ option(ENABLE_LTO "Enable link time optimization" ${DEFAULT_ENABLE_LTO})
 option(CITRA_USE_PRECOMPILED_HEADERS "Use precompiled headers" ON)
 option(CITRA_WARNINGS_AS_ERRORS "Enable warnings as errors" ON)
 
-# System library options
-CMAKE_DEPENDENT_OPTION(USE_SYSTEM_QT "Use the system Qt lib (instead of the bundled one)" OFF "ENABLE_QT;MSVC OR APPLE" ON)
-CMAKE_DEPENDENT_OPTION(USE_SYSTEM_MOLTENVK "Use the system MoltenVK lib (instead of the bundled one)" OFF "APPLE" OFF)
-option(USE_SYSTEM_SDL2 "Use the system SDL2 lib (instead of the bundled one)" OFF)
-option(USE_SYSTEM_BOOST "Use the system Boost libs (instead of the bundled ones)" OFF)
-option(USE_SYSTEM_OPENSSL "Use the system OpenSSL libs (instead of the bundled LibreSSL)" OFF)
-option(USE_SYSTEM_LIBUSB "Use the system libusb (instead of the bundled libusb)" OFF)
-option(USE_SYSTEM_CPP_JWT "Use the system cpp-jwt (instead of the bundled one)" OFF)
-option(USE_SYSTEM_SOUNDTOUCH "Use the system SoundTouch (instead of the bundled one)" OFF)
-option(USE_SYSTEM_CPP_HTTPLIB "Use the system cpp-httplib (instead of the bundled one)" OFF)
-option(USE_SYSTEM_JSON "Use the system JSON (nlohmann-json3) package (instead of the bundled one)" OFF)
-option(USE_SYSTEM_DYNARMIC "Use the system dynarmic (instead of the bundled one)" OFF)
-option(USE_SYSTEM_FMT "Use the system fmt (instead of the bundled one)" OFF)
-option(USE_SYSTEM_XBYAK "Use the system xbyak (instead of the bundled one)" OFF)
+include(CitraHandleSystemLibs)
 
 if (CITRA_USE_PRECOMPILED_HEADERS)
     message(STATUS "Using Precompiled Headers.")
